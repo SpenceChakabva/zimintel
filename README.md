@@ -1,7 +1,7 @@
 # ZimIntel - Real-Time Market Intelligence for Zimbabwe
 
 <p align="center">
-  <img src="src/Dashboard.JPG" alt="ZimIntel Dashboard" width="100%"/>
+  <img src="Dashboard.JPG" alt="ZimIntel Dashboard" width="100%"/>
 </p>
 
 **ZimIntel** is a full-stack, real-time economic intelligence platform that tracks fuel prices, currency movements, food basket costs, and geopolitical risk across 17 Zimbabwean cities. It combines live oil market data, crowdsourced price reports, and AI-powered game theory analysis to help citizens, businesses, and policymakers navigate economic volatility.
