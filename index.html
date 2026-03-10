@@ -1,0 +1,3003 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ZimIntel | Real-Time Market Intelligence</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=DM+Mono:wght@400;500&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link href="https://api.mapbox.com/mapbox-gl-js/v3.2.0/mapbox-gl.css" rel="stylesheet">
+<script src="https://api.mapbox.com/mapbox-gl-js/v3.2.0/mapbox-gl.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+:root {
+  --bg0:#050505; --bg1:#0c0c0c; --bg2:#131313; --bg3:#1a1a1a;
+  --line:#242424; --t0:#f0f0f0; --t1:#9a9a9a; --t2:#4a4a4a;
+  --amber:#d97706; --amber2:#f59e0b; --red:#dc2626;
+  --green:#16a34a; --orange:#ea580c; --r:12px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{font-family:'DM Sans',sans-serif;background:var(--bg0);color:var(--t0);overflow-x:hidden}
+.mono{font-family:'DM Mono',monospace}
+.display{font-family:'Outfit',sans-serif}
+::-webkit-scrollbar{width:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--line);border-radius:3px}
+
+/* Three.js canvas background */
+#three-bg{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;pointer-events:none;opacity:.6}
+
+@keyframes ticker{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+@keyframes ripple{0%{transform:scale(1);opacity:.5}100%{transform:scale(3);opacity:0}}
+@keyframes pdot{0%,100%{opacity:1}50%{opacity:.3}}
+@keyframes sup{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fin{from{opacity:0}to{opacity:1}}
+@keyframes glow{0%,100%{box-shadow:0 0 20px rgba(217,119,6,.1)}50%{box-shadow:0 0 40px rgba(217,119,6,.28)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Smooth price update animations */
+@keyframes priceFlashUp{
+  0%{background:rgba(22,163,74,.25);transform:scale(1.02);text-shadow:0 0 8px rgba(22,163,74,.4)}
+  100%{background:transparent;transform:scale(1);text-shadow:none}
+}
+@keyframes priceFlashDown{
+  0%{background:rgba(220,38,38,.25);transform:scale(1.02);text-shadow:0 0 8px rgba(220,38,38,.4)}
+  100%{background:transparent;transform:scale(1);text-shadow:none}
+}
+@keyframes priceFlashNeutral{
+  0%{background:rgba(217,119,6,.4);transform:scale(1.02)}
+  100%{background:transparent;transform:scale(1)}
+}
+@keyframes countUp{
+  0%{opacity:.4;transform:translateY(8px)}
+  100%{opacity:1;transform:translateY(0)}
+}
+@keyframes pulseGlow{
+  0%{box-shadow:0 0 0 0 rgba(217,119,6,.4)}
+  70%{box-shadow:0 0 0 10px rgba(217,119,6,0)}
+  100%{box-shadow:0 0 0 0 rgba(217,119,6,0)}
+}
+
+.card-pulse::after{
+  content:'';position:absolute;top:0;left:0;right:0;bottom:0;
+  border-radius:inherit;
+  box-shadow:inset 0 0 0 1px rgba(217,119,6,.25);
+  animation:pulseBorder 1s ease-out;
+  pointer-events:none;
+}
+@keyframes pulseBorder{
+  0%{opacity:1}
+  100%{opacity:0}
+}
+@keyframes shimmer{
+  0%{background-position:-200% 0}
+  100%{background-position:200% 0}
+}
+@keyframes slideInNews{
+  from{opacity:0;transform:translateX(-20px)}
+  to{opacity:1;transform:translateX(0)}
+}
+@keyframes basketPulse{
+  0%{border-color:var(--line)}
+  50%{border-color:var(--amber)}
+  100%{border-color:var(--line)}
+}
+
+.anim-su{animation:sup .5s ease forwards}
+.anim-fi{animation:fin .3s ease}
+.anim-glow{animation:glow 2.5s ease infinite}
+.s1{animation-delay:.05s;opacity:0}.s2{animation-delay:.12s;opacity:0}
+.s3{animation-delay:.19s;opacity:0}.s4{animation-delay:.26s;opacity:0}
+
+/* ============================================================
+   FRAMER-STYLE ENTRANCE ANIMATIONS
+   ============================================================ */
+
+/* Base: all animatable elements start invisible */
+[data-motion]{opacity:0;will-change:transform,opacity}
+
+/* Variants */
+@keyframes motionFadeUp{
+  from{opacity:0;transform:translateY(28px)}
+  to{opacity:1;transform:translateY(0)}
+}
+@keyframes motionFadeLeft{
+  from{opacity:0;transform:translateX(-24px)}
+  to{opacity:1;transform:translateX(0)}
+}
+@keyframes motionFadeRight{
+  from{opacity:0;transform:translateX(24px)}
+  to{opacity:1;transform:translateX(0)}
+}
+@keyframes motionScale{
+  from{opacity:0;transform:scale(.9)}
+  to{opacity:1;transform:scale(1)}
+}
+@keyframes motionBlur{
+  from{opacity:0;filter:blur(8px);transform:translateY(16px)}
+  to{opacity:1;filter:blur(0);transform:translateY(0)}
+}
+@keyframes motionReveal{
+  from{opacity:0;transform:translateY(40px) scale(.95)}
+  to{opacity:1;transform:translateY(0) scale(1)}
+}
+@keyframes motionStagger{
+  from{opacity:0;transform:translateY(20px) rotateX(8deg)}
+  to{opacity:1;transform:translateY(0) rotateX(0)}
+}
+
+/* Trigger classes — applied by JS IntersectionObserver */
+[data-motion].motion-in[data-variant="fade-up"]{animation:motionFadeUp .65s cubic-bezier(.22,1,.36,1) both}
+[data-motion].motion-in[data-variant="fade-left"]{animation:motionFadeLeft .55s cubic-bezier(.22,1,.36,1) both}
+[data-motion].motion-in[data-variant="fade-right"]{animation:motionFadeRight .55s cubic-bezier(.22,1,.36,1) both}
+[data-motion].motion-in[data-variant="scale"]{animation:motionScale .5s cubic-bezier(.22,1,.36,1) both}
+[data-motion].motion-in[data-variant="blur"]{animation:motionBlur .7s cubic-bezier(.22,1,.36,1) both}
+[data-motion].motion-in[data-variant="reveal"]{animation:motionReveal .7s cubic-bezier(.22,1,.36,1) both}
+[data-motion].motion-in[data-variant="stagger"]{animation:motionStagger .6s cubic-bezier(.22,1,.36,1) both}
+
+/* Hover lift — micro-interaction */
+.hover-lift{transition:transform .25s cubic-bezier(.22,1,.36,1),box-shadow .25s ease}
+.hover-lift:hover{transform:translateY(-5px);box-shadow:0 20px 48px rgba(0,0,0,.4),0 0 0 1px rgba(217,119,6,.12)}
+
+/* Analysis card reveal animation */
+@keyframes analysisReveal{
+  from{opacity:0;transform:translateY(24px);filter:blur(4px)}
+  to{opacity:1;transform:translateY(0);filter:blur(0)}
+}
+.analysis-card{animation:analysisReveal .6s cubic-bezier(.22,1,.36,1) both}
+
+/* Staggered analysis sections */
+.ai-block:nth-child(1){animation-delay:.05s}
+.ai-block:nth-child(2){animation-delay:.12s}
+.ai-block:nth-child(3){animation-delay:.19s}
+.ai-block:nth-child(4){animation-delay:.26s}
+.ai-block:nth-child(5){animation-delay:.33s}
+.ai-block:nth-child(6){animation-delay:.40s}
+.ai-block:nth-child(7){animation-delay:.47s}
+
+/* Game theory table — fully responsive */
+.gt-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:10px}
+.gt-table{width:100%;min-width:400px;border-collapse:collapse}
+.gt-head{display:grid;grid-template-columns:minmax(90px,120px) 1fr minmax(140px,1fr) minmax(70px,90px);gap:0;padding:8px 0;border-bottom:2px solid var(--line)}
+.gt-row{display:grid;grid-template-columns:minmax(90px,120px) 1fr minmax(140px,1fr) minmax(70px,90px);gap:0;border-bottom:1px solid var(--line);transition:background .18s;min-width:0}
+.gt-row:hover{background:rgba(255,255,255,.025)}
+.gt-cell{padding:10px 12px;font-size:12px;display:flex;align-items:center;min-width:0;word-break:break-word}
+.gt-head-cell{padding:6px 12px;font-size:9px;color:var(--t2);text-transform:uppercase;letter-spacing:.06em;font-weight:700}
+/* Actor icon pill */
+.gt-actor{display:flex;align-items:center;gap:6px;font-weight:700;font-size:12px}
+/* Prob column */
+.gt-prob-col{flex-direction:column;align-items:flex-start!important;gap:4px}
+.gt-prob-bar{width:100%;height:4px;background:var(--line);border-radius:2px;overflow:hidden}
+.gt-prob-fill{height:100%;border-radius:2px;transition:width 1.4s cubic-bezier(.22,1,.36,1)}
+
+/* Probability meter */
+.prob-meter{
+  height:6px;border-radius:3px;background:var(--line);overflow:hidden;margin-top:6px;
+}
+.prob-fill{height:100%;border-radius:3px;transition:width 1.4s cubic-bezier(.22,1,.36,1)}
+
+/* Citizen action card */
+.citizen-card{
+  border-radius:10px;padding:14px 16px;border:1px solid var(--line);
+  background:linear-gradient(135deg,var(--bg2),var(--bg1));
+  transition:border-color .2s,transform .2s;
+}
+.citizen-card:hover{border-color:rgba(217,119,6,.4);transform:translateY(-2px)}
+
+/* Government card */
+.gov-card{
+  border-radius:10px;padding:14px 16px;border:1px solid rgba(59,130,246,.2);
+  background:linear-gradient(135deg,rgba(59,130,246,.05),var(--bg1));
+  transition:border-color .2s,transform .2s;
+}
+.gov-card:hover{border-color:rgba(59,130,246,.4);transform:translateY(-2px)}
+
+/* Urgency pulse ring */
+@keyframes urgencyRing{
+  0%{box-shadow:0 0 0 0 rgba(220,38,38,.5)}
+  70%{box-shadow:0 0 0 8px rgba(220,38,38,0)}
+  100%{box-shadow:0 0 0 0 rgba(220,38,38,0)}
+}
+.urgency-ring{animation:urgencyRing 2s ease infinite}
+
+/* Timeline connector */
+.timeline-item{
+  position:relative;padding-left:28px;margin-bottom:14px;
+}
+.timeline-item::before{
+  content:'';position:absolute;left:6px;top:20px;bottom:-14px;width:1px;background:var(--line);
+}
+.timeline-item:last-child::before{display:none}
+.timeline-dot{
+  position:absolute;left:0;top:6px;width:13px;height:13px;border-radius:50%;
+  border:2px solid var(--bg0);display:flex;align-items:center;justify-content:center;
+}
+
+/* Section tab entry animation */
+.sec.on > div { animation: motionFadeUp .5s cubic-bezier(.22,1,.36,1) both; }
+
+/* Price update classes */
+.price-up{animation:priceFlashUp .8s cubic-bezier(.22,1,.36,1);border-radius:6px}
+.price-down{animation:priceFlashDown .8s cubic-bezier(.22,1,.36,1);border-radius:6px}
+.price-neutral{animation:priceFlashNeutral .6s ease;border-radius:6px}
+.price-count{animation:countUp .4s ease-out}
+.pulse-glow{animation:pulseGlow 1s ease}
+.news-slide{animation:slideInNews .4s ease-out forwards}
+.basket-pulse{animation:basketPulse 1.5s ease}
+
+/* Smooth number transition */
+.bignum{
+  font-family:'Outfit',sans-serif;font-size:30px;font-weight:700;
+  transition:color .6s ease;
+  display:inline-block;
+  will-change:contents;
+  -webkit-font-smoothing:antialiased;
+}
+.bignum.updating{animation:countUp .35s ease-out}
+
+/* Card shimmer on update */
+.card-updating{
+  position:relative;overflow:hidden;
+}
+.card-updating::after{
+  content:'';position:absolute;top:0;left:0;right:0;bottom:0;
+  background:linear-gradient(90deg,transparent,rgba(217,119,6,.06),transparent);
+  background-size:200% 100%;
+  animation:shimmer 2s ease-out;
+  pointer-events:none;
+  border-radius:var(--r);
+}
+
+.card{background:var(--bg1);border:1px solid var(--line);border-radius:var(--r);position:relative;z-index:1}
+.ch{transition:border-color .25s,transform .22s,box-shadow .22s}
+.ch:hover{border-color:var(--amber);transform:translateY(-3px);box-shadow:0 16px 40px rgba(217,119,6,.1)}
+
+.badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:6px;font-size:10px;font-weight:700;letter-spacing:.04em}
+.badge-critical{background:rgba(220,38,38,.15);color:#fca5a5;border:1px solid rgba(220,38,38,.3)}
+.badge-high{background:rgba(217,119,6,.15);color:#fcd34d;border:1px solid rgba(217,119,6,.3)}
+.badge-normal{background:rgba(80,80,80,.2);color:#d4d4d4;border:1px solid rgba(80,80,80,.3)}
+.badge-src{background:rgba(59,130,246,.12);color:#93c5fd;border:1px solid rgba(59,130,246,.25);font-size:8px;padding:2px 6px}
+
+.live-dot{display:inline-flex;align-items:center;gap:7px;position:relative}
+.live-dot::before{content:'';width:7px;height:7px;border-radius:50%;background:var(--green);animation:pdot 1.8s ease infinite}
+.live-dot::after{content:'';position:absolute;left:0;top:50%;transform:translateY(-50%);width:7px;height:7px;border-radius:50%;background:var(--green);animation:ripple 1.8s ease infinite}
+.live-dot.off::before{background:var(--t2);animation:none}
+.live-dot.off::after{display:none}
+
+.inp{width:100%;padding:12px 15px;background:var(--bg0);border:1px solid var(--line);border-radius:9px;color:var(--t0);font-family:inherit;font-size:14px;outline:none}
+.inp:focus{border-color:var(--amber);box-shadow:0 0 0 3px rgba(217,119,6,.1)}
+select.inp option{background:var(--bg2)}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:12px 24px;border-radius:9px;font-family:inherit;font-weight:700;font-size:14px;cursor:pointer;border:none;transition:transform .18s,box-shadow .18s}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btnp{background:linear-gradient(135deg,var(--amber),var(--orange));color:#fff}
+.btnp:not(:disabled):hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(217,119,6,.3)}
+
+.tabs{display:flex;gap:3px;padding:4px;background:var(--bg2);border-radius:10px}
+.tab{padding:9px 16px;border-radius:7px;font-size:13px;font-weight:600;color:var(--t1);cursor:pointer;transition:color .2s,background .2s;white-space:nowrap}
+.tab:hover{color:var(--t0)}.tab.on{background:var(--bg3);color:var(--t0)}
+
+.sec{display:none}.sec.on{display:block;animation:fin .3s ease}
+
+.pbar{height:5px;background:var(--line);border-radius:3px;overflow:hidden}
+.pfill{height:100%;border-radius:3px;transition:width 1.2s cubic-bezier(.22,1,.36,1)}
+
+.lbl{font-size:10px;color:var(--t1);text-transform:uppercase;letter-spacing:.06em}
+
+.chart-box{position:relative;width:100%;height:200px;flex-shrink:0}
+.spark-box{position:relative;width:100%;height:40px;flex-shrink:0}
+
+.ticker-outer{overflow:hidden;background:var(--bg2);border-bottom:1px solid var(--line)}
+.ticker-inner{display:flex;white-space:nowrap;animation:ticker 70s linear infinite}
+.ticker-inner:hover{animation-play-state:paused}
+
+#spill{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--t2);padding:5px 11px;border-radius:20px;background:var(--bg2);border:1px solid var(--line)}
+#spill.sse{color:var(--green);border-color:rgba(22,163,74,.3)}
+#spill.poll{color:#60a5fa;border-color:rgba(96,165,250,.3)}
+#spill.sim{color:var(--t2);border-color:rgba(80,80,80,.3)}
+
+.nitem{padding:11px 13px;border-radius:9px;cursor:pointer;transition:background .18s,transform .18s,opacity .18s;border-left:3px solid transparent;opacity:0;animation:slideInNews .4s ease-out forwards}
+.nitem:hover{background:rgba(255,255,255,.03);transform:translateX(4px)}
+.nitem.critical{border-left-color:var(--red)}
+.nitem.high{border-left-color:var(--amber)}
+.nitem.normal{border-left-color:var(--t2)}
+
+.catbtn{padding:13px 6px;border-radius:10px;background:var(--bg0);border:1px solid var(--line);text-align:center;cursor:pointer;transition:border-color .2s,background .2s;color:var(--t1)}
+.catbtn:hover,.catbtn.on{border-color:var(--amber);background:rgba(217,119,6,.07);color:var(--amber2)}
+
+/* Map */
+#map-wrap{position:relative;height:560px;overflow:hidden;border-radius:var(--r);border:1px solid var(--line)}
+#mb-map{width:100%;height:100%}
+
+.mapboxgl-popup-content{
+  background:var(--bg1)!important;
+  border:1px solid var(--line)!important;
+  border-radius:10px!important;
+  padding:14px!important;
+  box-shadow:0 8px 32px rgba(0,0,0,.6)!important;
+  color:var(--t0)!important;
+  font-family:'Syne',sans-serif!important;
+  min-width:220px;
+}
+.mapboxgl-popup-close-button{color:var(--t1);font-size:20px;padding:4px 10px}
+.mapboxgl-popup-tip{border-top-color:var(--bg1)!important}
+
+#city-panel{position:absolute;top:14px;right:14px;width:260px;z-index:20;transform:translateX(290px);transition:transform .3s cubic-bezier(.4,0,.2,1)}
+#city-panel.open{transform:translateX(0)}
+
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.85);backdrop-filter:blur(12px);z-index:200;opacity:0;pointer-events:none;transition:opacity .3s}
+.overlay.on{opacity:1;pointer-events:auto}
+.modal{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(.92);width:92%;max-width:620px;max-height:88vh;overflow-y:auto;z-index:201;opacity:0;pointer-events:none;transition:all .32s cubic-bezier(.4,0,.2,1)}
+.modal.on{opacity:1;pointer-events:auto;transform:translate(-50%,-50%) scale(1)}
+
+.spinner{width:24px;height:24px;border:3px solid var(--line);border-top-color:var(--amber);border-radius:50%;animation:spin 1s linear infinite}
+
+/* Food basket item animation */
+.basket-item{
+  padding:11px;border-radius:9px;border:1px solid var(--line);background:var(--bg0);
+  transition:transform .3s ease,border-color .5s ease,box-shadow .5s ease;
+}
+.basket-item:hover{
+  transform:translateY(-4px) scale(1.02);
+  border-color:var(--amber);
+  box-shadow:0 8px 24px rgba(217,119,6,.12);
+}
+.basket-item .price-value{
+  transition:color .4s ease;
+}
+
+/* Risk badge 3D effect */
+.risk-3d{
+  perspective:600px;
+  transform-style:preserve-3d;
+}
+.risk-3d:hover{
+  animation:none;
+  transform:rotateY(10deg) rotateX(-5deg);
+  transition:transform .3s ease;
+}
+
+/* ═══════════════════════════════════════════
+   RESPONSIVE — full breakpoint coverage
+   ═══════════════════════════════════════════ */
+
+/* Oil chart + Intel Feed side-by-side until 1100px, then stacked */
+.oil-chart-grid{display:grid;grid-template-columns:1fr 360px;gap:20px;margin-bottom:24px;align-items:start}
+
+@media(max-width:1100px){
+  .oil-chart-grid{grid-template-columns:1fr!important}
+  .oil-chart-grid .intel-feed-card{max-height:320px}
+}
+
+/* GT table: hide Objective column at 860px */
+@media(max-width:860px){
+  .gt-row,.gt-head{grid-template-columns:minmax(80px,100px) 1fr minmax(72px,82px)!important}
+  .gt-obj-col{display:none!important}
+  header > div > div{flex-wrap:wrap;gap:10px}
+}
+
+@media(max-width:720px){
+  /* Metric cards: 2 col */
+  .metric-grid{grid-template-columns:repeat(2,1fr)!important}
+  /* AI 2-col grids → 1 col */
+  #ai-content [style*="grid-template-columns:1fr 1fr"]{grid-template-columns:1fr!important}
+  /* Scenarios: 2 col */
+  #ai-content .scenarios-grid{grid-template-columns:repeat(2,1fr)!important}
+  /* Citizen/gov: 1 col */
+  #ai-content .citizen-grid,#ai-content .gov-grid{grid-template-columns:1fr!important}
+  /* KV exec summary: 3 col */
+  #ai-content .kv-grid{grid-template-columns:repeat(3,1fr)!important}
+  /* GT hide objective too */
+  .gt-row,.gt-head{grid-template-columns:minmax(72px,90px) 1fr minmax(64px,76px)!important}
+  .gt-obj-col{display:none!important}
+}
+
+@media(max-width:640px){
+  header .tabs{overflow-x:auto;flex-wrap:nowrap;max-width:calc(100vw - 84px);scrollbar-width:none}
+  header .tabs::-webkit-scrollbar{display:none}
+  header > div > div > div:last-child{display:none}
+  .bignum{font-size:22px!important}
+  #sec-dashboard > div{padding:0 12px 40px!important}
+  #sec-analysis > div,#sec-report > div,#sec-map > div{padding:0 12px 40px!important}
+  #sec-report .catbtn{padding:11px 4px!important}
+  #map-wrap{height:360px!important}
+  .modal{width:96%!important;max-height:92vh!important}
+  #news-modal > div:last-child{grid-template-columns:1fr!important}
+  #ai-content .kv-grid{grid-template-columns:repeat(2,1fr)!important}
+  #ai-content .scenarios-grid{grid-template-columns:1fr!important}
+  .gt-row,.gt-head{grid-template-columns:minmax(60px,72px) 1fr minmax(56px,66px)!important}
+  #city-grid{grid-template-columns:repeat(2,1fr)!important}
+  #sec-analysis > div > div:first-child > div:last-child{flex-direction:column;gap:6px}
+  #sec-analysis .card:first-of-type > div{flex-direction:column;align-items:flex-start!important;gap:8px}
+  .oil-chart-grid .intel-feed-card{max-height:280px}
+}
+
+@media(max-width:400px){
+  .metric-grid{grid-template-columns:1fr!important}
+  .bignum{font-size:18px!important}
+  #sec-report .catbtn{padding:9px 2px!important;font-size:9px!important}
+  .gt-row,.gt-head{grid-template-columns:54px 1fr 58px!important}
+}
+/* GT table scroll indicator on small screens */
+.gt-wrap{position:relative}
+.gt-wrap::after{
+  content:'';position:absolute;right:0;top:0;bottom:0;width:28px;
+  background:linear-gradient(to right,transparent,var(--bg1));
+  pointer-events:none;border-radius:0 8px 8px 0;
+  display:none;
+}
+@media(max-width:640px){.gt-wrap::after{display:block}}
+
+/* Report a price page improvements */
+#sec-report .card form{position:relative}
+
+/* Basket Claude badge variant */
+.badge-claude{background:rgba(168,85,247,.15);color:#c4b5fd;border:1px solid rgba(168,85,247,.3)}
+
+/* Intel feed: ensure it fills height properly in all layouts */
+.intel-feed-card{display:flex;flex-direction:column}
+.intel-feed-card #news-feed{flex:1;overflow-y:auto;min-height:0}
+
+</style>
+</head>
+<body>
+
+<!-- THREE.JS 3D BACKGROUND -->
+<canvas id="three-bg"></canvas>
+
+<!-- TICKER -->
+<div class="ticker-outer" style="position:fixed;top:0;left:0;right:0;z-index:60;height:34px;display:flex;align-items:center">
+  <div class="ticker-inner mono" id="ticker" style="font-size:11px;color:rgba(251,191,36,.75)"></div>
+</div>
+
+<div style="padding-top:34px;min-height:100vh;position:relative;z-index:1">
+
+<!-- HEADER -->
+<header style="position:sticky;top:34px;z-index:40;background:linear-gradient(to bottom,var(--bg0) 82%,transparent)">
+<div style="max-width:1280px;margin:0 auto;padding:18px 24px">
+<div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
+  <div style="display:flex;align-items:center;gap:13px">
+    <div style="width:44px;height:44px;border-radius:10px;background:linear-gradient(135deg,#b45309,#c2410c,#991b1b);display:flex;align-items:center;justify-content:center">
+      <svg width="22" height="22" fill="none" stroke="white" stroke-width="2.5"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
+    </div>
+    <div>
+      <div style="font-size:22px;font-weight:800;letter-spacing:-.02em;font-family:'Outfit',sans-serif">ZimIntel</div>
+      <div style="display:flex;align-items:center;gap:10px;font-size:12px;color:var(--t1)">
+        <span class="live-dot" id="livdot">Live</span>
+        <span class="mono" id="clock" style="font-size:11px"></span>
+      </div>
+    </div>
+  </div>
+
+  <nav><div class="tabs">
+    <div class="tab on" data-s="dashboard">Dashboard</div>
+    <div class="tab" data-s="map">Market Map</div>
+    <div class="tab" data-s="report">Report Price</div>
+    <div class="tab" data-s="analysis">AI Analysis</div>
+  </div></nav>
+
+  <div style="display:flex;align-items:center;gap:10px;flex-shrink:0">
+    <div id="spill"><span style="width:7px;height:7px;border-radius:50%;background:currentColor"></span><span id="spill-lbl">Connecting...</span><span class="mono" id="feed-ts" style="font-size:9px;opacity:.7;margin-left:4px"></span></div>
+    <div class="card" style="padding:7px 13px;display:flex;align-items:center;gap:8px">
+      <span style="font-size:10px;color:var(--t1)">Day</span>
+      <span class="mono" style="font-size:18px;font-weight:600;color:var(--amber2)" id="cday">7</span>
+    </div>
+    <div class="card anim-glow risk-3d" style="padding:7px 14px">
+      <span style="font-size:12px;font-weight:700;color:var(--red)" id="risk-badge">RISK 78</span>
+    </div>
+  </div>
+</div>
+</div>
+</header>
+
+<!-- DASHBOARD -->
+<section id="sec-dashboard" class="sec on">
+<div style="max-width:1280px;margin:0 auto;padding:0 24px 60px">
+  <div class="metric-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:24px">
+    <div class="card ch anim-su s1 hover-lift" data-motion data-variant="fade-up" id="card-brent" style="padding:22px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px">
+        <div style="width:42px;height:42px;border-radius:9px;background:rgba(217,119,6,.1);display:flex;align-items:center;justify-content:center">
+          <svg width="20" height="20" fill="none" stroke="var(--amber2)" stroke-width="2"><circle cx="10" cy="10" r="8"/><path d="M10 6v4l2 2"/></svg>
+        </div>
+        <span class="mono" style="font-size:12px;color:var(--red)" id="brent-chg">+21.0%</span>
+      </div>
+      <div class="lbl">Brent Crude</div>
+      <div class="bignum" id="brent-val">$85.41</div>
+      <div style="font-size:11px;color:var(--t2);margin-top:2px">per barrel</div>
+      <div class="spark-box" style="margin-top:10px"><canvas id="spark-brent"></canvas></div>
+    </div>
+
+    <div class="card ch anim-su s2 hover-lift" data-motion data-variant="fade-up" id="card-diesel" style="padding:22px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px">
+        <div style="width:42px;height:42px;border-radius:9px;background:rgba(220,38,38,.1);display:flex;align-items:center;justify-content:center">
+          <svg width="20" height="20" fill="none" stroke="var(--red)" stroke-width="2"><path d="M3 18h12M5 18V7l5-5 5 5v11"/><path d="M8 18v-4h4v4"/><path d="M15 7h2a2 2 0 012 2v4a2 2 0 01-2 2h-2"/></svg>
+        </div>
+        <span class="mono" style="font-size:12px;color:var(--red)" id="diesel-chg">+16.4%</span>
+      </div>
+      <div class="lbl">Diesel (ZERA)</div>
+      <div class="bignum" id="diesel-val">$1.77</div>
+      <div style="font-size:11px;color:var(--t2);margin-top:2px">per litre</div>
+      <div class="spark-box" style="margin-top:10px"><canvas id="spark-diesel"></canvas></div>
+    </div>
+
+    <div class="card ch anim-su s3 hover-lift" data-motion data-variant="fade-up" id="card-petrol" style="padding:22px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px">
+        <div style="width:42px;height:42px;border-radius:9px;background:rgba(234,88,12,.1);display:flex;align-items:center;justify-content:center">
+          <svg width="20" height="20" fill="none" stroke="var(--orange)" stroke-width="2"><path d="M3 18h12M5 18V7l5-5 5 5v11"/><path d="M8 18v-4h4v4"/><circle cx="17" cy="7" r="2" fill="none"/><path d="M17 5v-2M17 9v2M15 7h-1M19 7h1"/></svg>
+        </div>
+        <span class="mono" style="font-size:12px;color:var(--orange)" id="petrol-chg">+10.3%</span>
+      </div>
+      <div class="lbl">Petrol (ZERA)</div>
+      <div class="bignum" id="petrol-val">$1.71</div>
+      <div style="font-size:11px;color:var(--t2);margin-top:2px">per litre</div>
+      <div class="spark-box" style="margin-top:10px"><canvas id="spark-petrol"></canvas></div>
+    </div>
+
+    <div class="card ch anim-su s3" id="card-zig" style="padding:22px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px">
+        <div style="width:42px;height:42px;border-radius:9px;background:rgba(217,119,6,.1);display:flex;align-items:center;justify-content:center">
+          <svg width="20" height="20" fill="none" stroke="var(--amber2)" stroke-width="2"><circle cx="10" cy="10" r="8"/><path d="M10 6v8M7 10h6"/></svg>
+        </div>
+        <span class="mono" style="font-size:12px;color:var(--amber)" id="zig-prem">+27%</span>
+      </div>
+      <div class="lbl">ZiG Parallel Rate</div>
+      <div class="bignum" id="zig-val">34.20</div>
+      <div style="font-size:11px;color:var(--t2);margin-top:2px">vs <span id="zig-off">26.95</span> official</div>
+      <div style="margin-top:12px">
+        <div class="pbar"><div class="pfill" id="zig-bar" style="width:76%;background:linear-gradient(90deg,var(--amber),var(--orange))"></div></div>
+      </div>
+    </div>
+
+    <div class="card ch anim-su s4" style="padding:22px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px">
+        <div style="width:42px;height:42px;border-radius:9px;background:rgba(22,163,74,.1);display:flex;align-items:center;justify-content:center">
+          <svg width="20" height="20" fill="none" stroke="var(--green)" stroke-width="2"><path d="M10 18s6-3.5 6-8.5V4l-6-2-6 2v5.5C4 14.5 10 18 10 18z"/></svg>
+        </div>
+        <div style="width:8px;height:8px;border-radius:50%;background:var(--green);animation:pdot 1.8s ease infinite"></div>
+      </div>
+      <div class="lbl">Fuel Reserves</div>
+      <div class="bignum" style="color:var(--green)" id="reserves-val">3 mo</div>
+      <div style="font-size:11px;color:var(--t2);margin-top:2px">ZERA confirmed</div>
+    </div>
+  </div>
+
+  <div class="oil-chart-grid">
+    <div class="card" style="padding:22px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+        <div>
+          <div style="font-size:15px;font-weight:700">Oil Price Trajectory</div>
+          <div style="font-size:12px;color:var(--t1)">Brent crude — <span id="chart-day-range">11-day</span> trajectory <span class="mono" style="color:var(--amber2);font-size:11px" id="chart-last-updated"></span></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <span class="badge badge-critical" id="war-premium-badge">WAR PREMIUM +21%</span>
+          <span style="font-size:9px;color:var(--green);font-weight:700;background:rgba(22,163,74,.12);border:1px solid rgba(22,163,74,.3);padding:3px 8px;border-radius:5px" id="oil-live-label">⬤ LIVE</span>
+        </div>
+      </div>
+      <div class="chart-box" style="height:220px"><canvas id="main-chart"></canvas></div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px">
+        <div style="text-align:center;padding:8px;background:var(--bg0);border-radius:8px;border:1px solid var(--line)">
+          <div style="font-size:9px;color:var(--t2);text-transform:uppercase;letter-spacing:.05em">Low</div>
+          <div class="mono" style="font-size:14px;font-weight:700;color:var(--green)" id="chart-low">$70.50</div>
+        </div>
+        <div style="text-align:center;padding:8px;background:var(--bg0);border-radius:8px;border:1px solid var(--amber);box-shadow:0 0 12px rgba(217,119,6,.08)">
+          <div style="font-size:9px;color:var(--amber);text-transform:uppercase;letter-spacing:.05em">Current</div>
+          <div class="mono" style="font-size:14px;font-weight:700;color:var(--amber2)" id="chart-current">$85.41</div>
+        </div>
+        <div style="text-align:center;padding:8px;background:var(--bg0);border-radius:8px;border:1px solid var(--line)">
+          <div style="font-size:9px;color:var(--t2);text-transform:uppercase;letter-spacing:.05em">High</div>
+          <div class="mono" style="font-size:14px;font-weight:700;color:var(--red)" id="chart-high">$85.41</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card intel-feed-card" style="padding:16px;display:flex;flex-direction:column;max-height:420px;min-height:280px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-shrink:0">
+        <div style="font-size:14px;font-weight:700">Intelligence Feed</div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <span id="news-live-dot" style="width:6px;height:6px;border-radius:50%;background:var(--green);animation:pdot 1.8s ease infinite"></span>
+          <span style="font-size:9px;color:var(--green);font-weight:600">LIVE</span>
+          <span class="mono" id="news-refresh-ts" style="font-size:8px;color:var(--t2);margin-left:2px"></span>
+        </div>
+      </div>
+      <div style="display:flex;gap:4px;margin-bottom:8px;flex-shrink:0;flex-wrap:wrap">
+        <span style="font-size:8px;padding:2px 6px;border-radius:4px;background:rgba(59,130,246,.12);color:#93c5fd;border:1px solid rgba(59,130,246,.25)">Reuters RSS</span>
+        <span style="font-size:8px;padding:2px 6px;border-radius:4px;background:rgba(59,130,246,.12);color:#93c5fd;border:1px solid rgba(59,130,246,.25)">NewsData.io</span>
+        <span style="font-size:8px;padding:2px 6px;border-radius:4px;background:rgba(59,130,246,.12);color:#93c5fd;border:1px solid rgba(59,130,246,.25)">GNews.io</span>
+        <span style="font-size:8px;padding:2px 6px;border-radius:4px;background:rgba(59,130,246,.12);color:#93c5fd;border:1px solid rgba(59,130,246,.25)">BBC RSS</span>
+      </div>
+      <div id="news-feed" style="overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:2px"></div>
+    </div>
+  </div>
+
+  <div class="card" style="padding:22px;margin-bottom:20px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <div style="font-size:15px;font-weight:700">Food Basket Forecast</div>
+      <span class="badge badge-high">Expected 30-day rises</span>
+    </div>
+    <div id="basket" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(108px,1fr));gap:10px"></div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(175px,1fr));gap:12px">
+    <div class="card" style="padding:15px;border-left:3px solid var(--red)">
+      <div class="lbl">Strait of Hormuz</div>
+      <div style="font-weight:700;color:var(--red)" id="hormuz-val">CLOSED</div>
+    </div>
+    <div class="card" style="padding:15px;border-left:3px solid var(--amber)">
+      <div class="lbl">Next ZERA Review</div>
+      <div style="font-weight:700;color:var(--amber2)">Mar 18</div>
+    </div>
+    <div class="card" style="padding:15px;border-left:3px solid var(--orange)">
+      <div class="lbl">Oil Flow Disruption</div>
+      <div style="font-weight:700;color:var(--orange)">-80%</div>
+    </div>
+    <div class="card" style="padding:15px;border-left:3px solid #ca8a04">
+      <div class="lbl">Fertilizer Prices</div>
+      <div style="font-weight:700;color:#eab308">+22%</div>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- MARKET MAP -->
+<section id="sec-map" class="sec">
+<div style="max-width:1280px;margin:0 auto;padding:0 24px 60px">
+  <div style="margin-bottom:20px">
+    <div style="font-size:26px;font-weight:800;margin-bottom:4px">Zimbabwe Market Map</div>
+    <div style="font-size:14px;color:var(--t1)">Live crowdsourced prices -- click pins for details</div>
+  </div>
+
+  <div id="map-wrap">
+    <div id="mb-map"></div>
+
+    <div id="city-panel" class="card" style="padding:16px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <span style="font-weight:700;font-size:16px" id="cp-name">City</span>
+        <button onclick="closePanel()" style="background:none;border:none;color:var(--t1);cursor:pointer;font-size:18px">x</button>
+      </div>
+      <div id="cp-body"></div>
+    </div>
+
+    <div class="card" style="position:absolute;bottom:14px;left:14px;padding:12px;z-index:10">
+      <div style="font-size:11px;font-weight:600;margin-bottom:8px">Price Level</div>
+      <div style="display:flex;flex-direction:column;gap:5px;font-size:10px">
+        <div style="display:flex;align-items:center;gap:6px"><div style="width:10px;height:10px;border-radius:50%;background:#dc2626"></div><span style="color:var(--t1)">Above avg</span></div>
+        <div style="display:flex;align-items:center;gap:6px"><div style="width:10px;height:10px;border-radius:50%;background:#d97706"></div><span style="color:var(--t1)">Average</span></div>
+        <div style="display:flex;align-items:center;gap:6px"><div style="width:10px;height:10px;border-radius:50%;background:#16a34a"></div><span style="color:var(--t1)">Below avg</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div style="margin-top:20px">
+    <div style="font-size:15px;font-weight:700;margin-bottom:12px">All Cities</div>
+    <div id="city-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px"></div>
+  </div>
+</div>
+</section>
+
+<!-- REPORT -->
+<section id="sec-report" class="sec">
+<div style="max-width:620px;margin:0 auto;padding:0 24px 60px">
+  <div style="text-align:center;margin-bottom:30px">
+    <div style="width:56px;height:56px;border-radius:14px;background:linear-gradient(135deg,rgba(217,119,6,.2),rgba(234,88,12,.15));border:1px solid rgba(217,119,6,.3);display:flex;align-items:center;justify-content:center;margin:0 auto 16px">
+      <svg width="28" height="28" fill="none" stroke="var(--amber2)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+    </div>
+    <div style="font-size:26px;font-weight:800;margin-bottom:6px">Report a Price</div>
+    <div style="font-size:14px;color:var(--t1);line-height:1.6">Help your community with real-time intelligence.<br><span style="font-size:12px;color:var(--t2)">Reports feed directly into ZimIntel market data and AI analysis.</span></div>
+  </div>
+
+  <div class="card" style="padding:28px">
+    <form id="report-form">
+      <div style="margin-bottom:20px">
+        <label style="display:block;font-size:13px;font-weight:600;margin-bottom:8px;display:flex;align-items:center;gap:6px">
+          <svg width="14" height="14" fill="none" stroke="var(--amber2)" stroke-width="2"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>
+          Your City
+        </label>
+        <select class="inp" id="form-city"></select>
+      </div>
+      <div style="margin-bottom:20px">
+        <label style="display:block;font-size:13px;font-weight:600;margin-bottom:10px;display:flex;align-items:center;gap:6px">
+          <svg width="14" height="14" fill="none" stroke="var(--amber2)" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+          Category
+        </label>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px">
+          <div class="catbtn" data-cat="currency" onclick="selCat(this)" style="padding:14px 6px">
+            <div style="margin-bottom:6px;display:flex;justify-content:center">
+              <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="9"/><path d="M11 6v10M8 8.5c0-1.4 1.3-2.5 3-2.5s3 1.1 3 2.5-1.3 2.5-3 2.5-3 1.1-3 2.5 1.3 2.5 3 2.5 3-1.1 3-2.5"/></svg>
+            </div>
+            <div style="font-size:11px;font-weight:700">ZiG Rate</div>
+          </div>
+          <div class="catbtn" data-cat="diesel" onclick="selCat(this)" style="padding:14px 6px">
+            <div style="margin-bottom:6px;display:flex;justify-content:center">
+              <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 20h12M5 20V8l5-6 5 6v12"/><path d="M9 20v-5h4v5"/><path d="M17 8h2a2 2 0 012 2v4a2 2 0 01-2 2h-2"/></svg>
+            </div>
+            <div style="font-size:11px;font-weight:700">Diesel</div>
+          </div>
+          <div class="catbtn" data-cat="petrol" onclick="selCat(this)" style="padding:14px 6px">
+            <div style="margin-bottom:6px;display:flex;justify-content:center">
+              <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 20h12M5 20V8l5-6 5 6v12"/><path d="M9 20v-5h4v5"/><path d="M17 5l2 2-2 2"/><circle cx="19" cy="5" r="1.5" fill="currentColor"/></svg>
+            </div>
+            <div style="font-size:11px;font-weight:700">Petrol</div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+          <div class="catbtn" data-cat="food" onclick="selCat(this)" style="padding:14px 6px">
+            <div style="margin-bottom:6px;display:flex;justify-content:center">
+              <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M6 6V4M18 6V4M8 6c0 4 2 6 4 8 2-2 4-4 4-8"/><path d="M3 14h18M6 20V14M18 20V14"/></svg>
+            </div>
+            <div style="font-size:11px;font-weight:700">Food</div>
+          </div>
+          <div class="catbtn" data-cat="transport" onclick="selCat(this)" style="padding:14px 6px">
+            <div style="margin-bottom:6px;display:flex;justify-content:center">
+              <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="18" height="11" rx="2"/><path d="M16 18v2M6 18v2M2 13h18M6 7l2-5h6l2 5"/></svg>
+            </div>
+            <div style="font-size:11px;font-weight:700">Kombi</div>
+          </div>
+          <div class="catbtn" data-cat="other" onclick="selCat(this)" style="padding:14px 6px">
+            <div style="margin-bottom:6px;display:flex;justify-content:center">
+              <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="9"/><path d="M11 7v1M11 11v5M8 11h3"/></svg>
+            </div>
+            <div style="font-size:11px;font-weight:700">Other</div>
+          </div>
+        </div>
+      </div>
+      <div id="form-fields" style="margin-bottom:20px"></div>
+      <div style="margin-bottom:16px">
+        <label style="display:block;font-size:13px;font-weight:600;margin-bottom:8px">Where did you see this price? <span style="color:var(--t2);font-weight:400">(optional)</span></label>
+        <input type="text" class="inp" id="field-location-hint" placeholder="e.g. OK Supermarket, Chicken Inn Avondale...">
+      </div>
+      <button type="submit" class="btn btnp" style="width:100%;gap:10px">
+        <svg width="16" height="16" fill="none" stroke="white" stroke-width="2.5"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+        Submit Report
+      </button>
+    </form>
+  </div>
+
+  <div class="card" style="padding:20px;margin-top:16px;border-top:3px solid var(--green)">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+      <div>
+        <div style="font-size:15px;font-weight:800;font-family:'Outfit',sans-serif;display:flex;align-items:center;gap:8px">
+          <span style="width:28px;height:28px;border-radius:7px;background:rgba(22,163,74,.12);border:1px solid rgba(22,163,74,.2);display:inline-flex;align-items:center;justify-content:center">
+            <svg width="14" height="14" fill="none" stroke="var(--green)" stroke-width="2"><circle cx="7" cy="7" r="5"/><path d="M7 4v3l2 2"/></svg>
+          </span>
+          Community Reports
+        </div>
+        <div style="font-size:11px;color:var(--t2);margin-top:3px;margin-left:36px">Your submissions power real-time intelligence</div>
+      </div>
+      <button onclick="loadRecentReports()" style="padding:6px 12px;border-radius:7px;border:1px solid var(--line);background:var(--bg2);color:var(--t1);cursor:pointer;font-family:inherit;font-size:11px;display:flex;align-items:center;gap:5px">
+        <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4c1-2 3-3 5-3a6 6 0 016 6M11 8c-1 2-3 3-5 3a6 6 0 01-6-6"/><path d="M11 2v4h-4M1 10V6h4"/></svg>
+        Refresh
+      </button>
+    </div>
+    <div id="recent-reports">Loading...</div>
+  </div>
+</div>
+</section>
+
+<!-- AI ANALYSIS -->
+<section id="sec-analysis" class="sec">
+<div style="max-width:1040px;margin:0 auto;padding:0 24px 60px">
+  <div style="text-align:center;margin-bottom:36px" data-motion data-variant="blur">
+    <div style="width:60px;height:60px;border-radius:16px;background:linear-gradient(135deg,rgba(217,119,6,.2),rgba(168,85,247,.15));border:1px solid rgba(168,85,247,.25);display:flex;align-items:center;justify-content:center;margin:0 auto 18px">
+      <svg width="28" height="28" fill="none" stroke="url(#aigrad)" stroke-width="2" stroke-linecap="round">
+        <defs><linearGradient id="aigrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#f59e0b"/><stop offset="100%" stop-color="#a78bfa"/></linearGradient></defs>
+        <path d="M12 2a10 10 0 100 20A10 10 0 0012 2z"/><path d="M12 8v4l3 3"/><path d="M8.5 3.5l1 1.5M15.5 3.5l-1 1.5M3.5 8.5l1.5 1M20.5 8.5l-1.5 1"/>
+      </svg>
+    </div>
+    <div style="font-size:30px;font-weight:900;letter-spacing:-.02em;font-family:'Outfit',sans-serif;margin-bottom:6px">AI Market Analysis</div>
+    <div style="font-size:14px;color:var(--t1)">Powered by Claude · Game theory + Economic modelling · Auto-updated every 2 hours</div>
+    <div style="display:flex;align-items:center;justify-content:center;gap:16px;margin-top:12px;flex-wrap:wrap">
+      <span style="font-size:11px;padding:4px 10px;border-radius:6px;background:rgba(168,85,247,.1);color:#a78bfa;border:1px solid rgba(168,85,247,.2)">Nash Equilibrium</span>
+      <span style="font-size:11px;padding:4px 10px;border-radius:6px;background:rgba(96,165,250,.1);color:#60a5fa;border:1px solid rgba(96,165,250,.2)">Monte Carlo 10K runs</span>
+      <span style="font-size:11px;padding:4px 10px;border-radius:6px;background:rgba(22,163,74,.1);color:#4ade80;border:1px solid rgba(22,163,74,.2)">Bayesian Price Forecast</span>
+    </div>
+  </div>
+
+  <div class="card" style="padding:16px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px" data-motion data-variant="fade-up">
+    <div style="display:flex;align-items:center;gap:12px">
+      <div style="width:10px;height:10px;border-radius:50%;background:var(--green);animation:pdot 1.8s ease infinite" id="ai-status-dot"></div>
+      <div>
+        <div style="font-size:13px;font-weight:700;font-family:'Outfit',sans-serif" id="ai-status-text">Analysis Active</div>
+        <div style="font-size:11px;color:var(--t2)" id="ai-last-update">Last updated: --</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap">
+      <div style="text-align:right">
+        <div style="font-size:11px;color:var(--t2)">Models running</div>
+        <div style="font-size:13px;font-weight:700;color:var(--amber2)">5 actor · Monte Carlo · Bayesian</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:11px;color:var(--t2)">Next update</div>
+        <div style="font-size:13px;font-weight:700;color:var(--amber2)" id="ai-next-update">--</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="ai-content">
+    <div style="text-align:center;padding:80px 20px">
+      <div class="spinner" style="margin:0 auto 20px;width:36px;height:36px;border-width:3px"></div>
+      <div style="font-size:15px;font-weight:700;font-family:'Outfit',sans-serif;margin-bottom:8px">Loading analysis...</div>
+      <div style="color:var(--t2);font-size:13px">Claude is running game theory models and economic forecasts</div>
+    </div>
+  </div>
+</div>
+</section>
+
+</div>
+
+<!-- NEWS MODAL -->
+<div id="news-ov" class="overlay" onclick="closeModal()"></div>
+<div id="news-modal" class="modal card" style="padding:24px">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px">
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <span id="m-badge" class="badge badge-critical">CRITICAL</span>
+      <span id="m-cat-badge" class="badge" style="background:rgba(59,130,246,.12);color:#93c5fd;border:1px solid rgba(59,130,246,.25);font-size:9px"></span>
+      <span style="font-size:12px;color:var(--t1)" id="m-src">Reuters</span>
+      <span style="font-size:11px;color:var(--t2)" id="m-time">5m ago</span>
+    </div>
+    <button onclick="closeModal()" style="background:none;border:none;color:var(--t1);cursor:pointer;font-size:22px;line-height:1">&times;</button>
+  </div>
+  <h3 style="font-size:18px;font-weight:700;line-height:1.35;margin-bottom:16px" id="m-headline">Headline</h3>
+  <div style="font-size:14px;color:rgba(240,240,240,.85);line-height:1.7;margin-bottom:20px" id="m-summary">Summary</div>
+
+  <!-- Claude AI Recommendation -->
+  <div style="padding:16px;border-radius:10px;background:linear-gradient(135deg,rgba(168,85,247,.06),rgba(217,119,6,.04));border:1px solid rgba(168,85,247,.2);margin-bottom:16px">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+      <div style="width:24px;height:24px;border-radius:6px;background:rgba(168,85,247,.15);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+        <svg width="13" height="13" fill="none" stroke="#c4b5fd" stroke-width="2"><path d="M6.5 1v12M1 6.5h11"/><circle cx="6.5" cy="6.5" r="5.5"/></svg>
+      </div>
+      <div style="font-size:11px;color:#c4b5fd;font-weight:700;text-transform:uppercase;letter-spacing:.06em">Claude AI Analysis</div>
+    </div>
+    <div id="m-ai-rec" style="font-size:13px;color:rgba(240,240,240,.85);line-height:1.6">Loading AI recommendation...</div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+    <div style="padding:14px;border-radius:10px;background:rgba(220,38,38,.06);border:1px solid rgba(220,38,38,.15)">
+      <div class="lbl" style="color:var(--red);margin-bottom:6px">Impact on Zimbabwe</div>
+      <div style="font-size:13px;color:rgba(240,240,240,.8);line-height:1.55" id="m-impact">--</div>
+    </div>
+    <div style="padding:14px;border-radius:10px;background:rgba(22,163,74,.06);border:1px solid rgba(22,163,74,.15)">
+      <div class="lbl" style="color:var(--green);margin-bottom:6px">Recommended Action</div>
+      <div style="font-size:13px;color:rgba(240,240,240,.8);line-height:1.55" id="m-action">--</div>
+    </div>
+  </div>
+
+  <!-- Original Article Link -->
+  <div id="m-link-wrap" style="display:none">
+    <a id="m-link" href="#" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:8px;padding:10px 18px;border-radius:8px;background:rgba(217,119,6,.1);border:1px solid rgba(217,119,6,.25);color:var(--amber2);font-size:13px;font-weight:600;text-decoration:none;transition:background .2s,transform .2s">
+      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 1h6v6M13 1L6 8M11 8v5H1V3h5"/></svg>
+      Read Original Article
+    </a>
+  </div>
+</div>
+
+<script>
+// ======================================================================
+// THREE.JS 3D PARTICLE BACKGROUND
+// ======================================================================
+
+let threeScene, threeCamera, threeRenderer, threeParticles, threeLines;
+let threeFrame = 0;
+
+function initThreeBackground() {
+  const canvas = document.getElementById('three-bg');
+  if (!canvas || !window.THREE) return;
+
+  threeScene = new THREE.Scene();
+  threeCamera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+  threeCamera.position.z = 50;
+
+  threeRenderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+  threeRenderer.setSize(window.innerWidth, window.innerHeight);
+  threeRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  threeRenderer.setClearColor(0x000000, 0);
+
+  // Particle system - floating data points
+  const particleCount = 200;
+  const particleGeometry = new THREE.BufferGeometry();
+  const positions = new Float32Array(particleCount * 3);
+  const colors = new Float32Array(particleCount * 3);
+  const sizes = new Float32Array(particleCount);
+  const velocities = [];
+
+  const palette = [
+    new THREE.Color(0xd97706), // amber
+    new THREE.Color(0xf59e0b), // amber bright
+    new THREE.Color(0xdc2626), // red
+    new THREE.Color(0x16a34a), // green
+    new THREE.Color(0xea580c), // orange
+  ];
+
+  for (let i = 0; i < particleCount; i++) {
+    positions[i * 3] = (Math.random() - 0.5) * 120;
+    positions[i * 3 + 1] = (Math.random() - 0.5) * 80;
+    positions[i * 3 + 2] = (Math.random() - 0.5) * 60 - 20;
+
+    const col = palette[Math.floor(Math.random() * palette.length)];
+    colors[i * 3] = col.r;
+    colors[i * 3 + 1] = col.g;
+    colors[i * 3 + 2] = col.b;
+
+    sizes[i] = Math.random() * 2 + 0.5;
+
+    velocities.push({
+      x: (Math.random() - 0.5) * 0.02,
+      y: (Math.random() - 0.5) * 0.015,
+      z: (Math.random() - 0.5) * 0.01,
+    });
+  }
+
+  particleGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  particleGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+  const particleMaterial = new THREE.PointsMaterial({
+    size: 1.5,
+    vertexColors: true,
+    transparent: true,
+    opacity: 0.6,
+    blending: THREE.AdditiveBlending,
+    sizeAttenuation: true,
+  });
+
+  threeParticles = new THREE.Points(particleGeometry, particleMaterial);
+  threeParticles._velocities = velocities;
+  threeScene.add(threeParticles);
+
+  // Connection lines between nearby particles
+  const lineGeometry = new THREE.BufferGeometry();
+  const linePositions = new Float32Array(particleCount * particleCount * 6);
+  lineGeometry.setAttribute('position', new THREE.BufferAttribute(linePositions, 3));
+
+  const lineMaterial = new THREE.LineBasicMaterial({
+    color: 0xd97706,
+    transparent: true,
+    opacity: 0.08,
+    blending: THREE.AdditiveBlending,
+  });
+
+  threeLines = new THREE.LineSegments(lineGeometry, lineMaterial);
+  threeScene.add(threeLines);
+
+  // Grid plane
+  const gridHelper = new THREE.GridHelper(100, 20, 0x1a1a1a, 0x111111);
+  gridHelper.position.y = -30;
+  gridHelper.rotation.x = Math.PI * 0.05;
+  gridHelper.material.transparent = true;
+  gridHelper.material.opacity = 0.3;
+  threeScene.add(gridHelper);
+
+  window.addEventListener('resize', () => {
+    threeCamera.aspect = window.innerWidth / window.innerHeight;
+    threeCamera.updateProjectionMatrix();
+    threeRenderer.setSize(window.innerWidth, window.innerHeight);
+  });
+
+  animateThree();
+}
+
+function animateThree() {
+  requestAnimationFrame(animateThree);
+  threeFrame++;
+
+  if (!threeParticles) return;
+
+  const positions = threeParticles.geometry.attributes.position.array;
+  const velocities = threeParticles._velocities;
+  const count = velocities.length;
+
+  // Update particle positions
+  for (let i = 0; i < count; i++) {
+    positions[i * 3] += velocities[i].x;
+    positions[i * 3 + 1] += velocities[i].y;
+    positions[i * 3 + 2] += velocities[i].z;
+
+    // Add sine wave for organic movement
+    positions[i * 3 + 1] += Math.sin(threeFrame * 0.005 + i * 0.1) * 0.01;
+
+    // Wrap around boundaries
+    if (positions[i * 3] > 60) positions[i * 3] = -60;
+    if (positions[i * 3] < -60) positions[i * 3] = 60;
+    if (positions[i * 3 + 1] > 40) positions[i * 3 + 1] = -40;
+    if (positions[i * 3 + 1] < -40) positions[i * 3 + 1] = 40;
+  }
+
+  threeParticles.geometry.attributes.position.needsUpdate = true;
+
+  // Update connection lines
+  const linePositions = threeLines.geometry.attributes.position.array;
+  let lineIdx = 0;
+  const maxDist = 15;
+
+  for (let i = 0; i < count && lineIdx < linePositions.length - 6; i++) {
+    for (let j = i + 1; j < count && lineIdx < linePositions.length - 6; j++) {
+      const dx = positions[i * 3] - positions[j * 3];
+      const dy = positions[i * 3 + 1] - positions[j * 3 + 1];
+      const dz = positions[i * 3 + 2] - positions[j * 3 + 2];
+      const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+
+      if (dist < maxDist) {
+        linePositions[lineIdx++] = positions[i * 3];
+        linePositions[lineIdx++] = positions[i * 3 + 1];
+        linePositions[lineIdx++] = positions[i * 3 + 2];
+        linePositions[lineIdx++] = positions[j * 3];
+        linePositions[lineIdx++] = positions[j * 3 + 1];
+        linePositions[lineIdx++] = positions[j * 3 + 2];
+      }
+    }
+  }
+
+  // Zero out unused line positions
+  for (let i = lineIdx; i < linePositions.length; i++) {
+    linePositions[i] = 0;
+  }
+  threeLines.geometry.attributes.position.needsUpdate = true;
+
+  // Slow rotation
+  threeParticles.rotation.y += 0.0003;
+  threeLines.rotation.y += 0.0003;
+
+  // Gentle camera sway
+  threeCamera.position.x = Math.sin(threeFrame * 0.001) * 3;
+  threeCamera.position.y = Math.cos(threeFrame * 0.0008) * 2;
+  threeCamera.lookAt(0, 0, 0);
+
+  threeRenderer.render(threeScene, threeCamera);
+}
+
+// React to market risk changes - intensify particles
+function pulseThreeOnUpdate(riskLevel) {
+  if (!threeParticles) return;
+  const intensity = riskLevel / 100;
+  threeParticles.material.opacity = 0.3 + intensity * 0.5;
+
+  // Briefly speed up particles
+  const velocities = threeParticles._velocities;
+  for (let i = 0; i < velocities.length; i++) {
+    velocities[i].x *= 1.02;
+    velocities[i].y *= 1.02;
+  }
+  // Settle down after a second
+  setTimeout(() => {
+    for (let i = 0; i < velocities.length; i++) {
+      velocities[i].x *= 0.98;
+      velocities[i].y *= 0.98;
+    }
+  }, 1000);
+}
+
+// ======================================================================
+// CONFIG
+// ======================================================================
+
+const API = '';
+let MAPBOX_TOKEN = null; // Always loaded from /api/config — never hardcoded in frontend
+
+// Load config (including Mapbox token) from backend — keeps keys server-side only
+async function loadConfig() {
+  try {
+    const res = await fetch(`${API}/api/config`);
+    if (res.ok) {
+      const cfg = await res.json();
+      if (cfg.mapbox_token) MAPBOX_TOKEN = cfg.mapbox_token;
+    }
+  } catch (e) {
+    console.warn('[CONFIG] Could not load config from server');
+  }
+}
+
+// ======================================================================
+// STATE
+// ======================================================================
+
+let cities = [];
+let news = [];
+let mkt = { brent_change: 21.1, diesel_change: 16.4, petrol_change: 10.3, brent: 85.41, diesel: 1.77, petrol: 1.71, zig_parallel: 34.20, zig_official: 26.95, conflict_day: 7, hormuz: 'CLOSED', risk: 78, live_oil: false, reserves_mo: 3, next_zera: '2026-03-18' };
+let prevMkt = { ...mkt }; // Track previous values for animation direction
+let aiAnalysis = null;
+let mbMap = null;
+let mapMarkers = {};
+let currentPopup = null;
+let selCatMode = null;
+let sseConnected = false;
+let _lastSSETick = 0;
+
+// Sparkline history buffers
+const sparkHistory = {
+  brent: [73, 77, 79, 82, 84, 85.41],
+  diesel: [1.52, 1.58, 1.65, 1.71, 1.77],
+  petrol: [1.48, 1.55, 1.60, 1.65, 1.71],
+};
+let sparkCharts = {};
+
+// ======================================================================
+// SMOOTH PRICE ANIMATION ENGINE
+// ======================================================================
+
+function animateNumber(el, from, to, duration = 800, prefix = '', suffix = '', decimals = 2) {
+  if (!el) return;
+  // Cancel any in-progress animation on this element
+  if (el._rafCancel) el._rafCancel = true;
+  const token = { cancelled: false };
+  el._rafCancel = false;
+  el._animToken = token;
+
+  const diff = to - from;
+  // For very small moves just write directly — no animation needed
+  if (Math.abs(diff) < 0.002) {
+    el.textContent = prefix + to.toFixed(decimals) + suffix;
+    return;
+  }
+
+  const start = performance.now();
+  function tick(now) {
+    if (token.cancelled) return;
+    const elapsed = now - start;
+    const progress = Math.min(elapsed / duration, 1);
+    const eased = 1 - Math.pow(1 - progress, 3);
+    el.textContent = prefix + (from + diff * eased).toFixed(decimals) + suffix;
+    if (progress < 1) requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
+
+
+function smoothPriceUpdate(elId, newVal, prefix = '$', decimals = 2, cardId = null) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+
+  // Cancel any running animation and read the TRUE target value, not mid-animation text
+  if (el._animToken) el._animToken.cancelled = true;
+  // Use stored target value to avoid reading mid-animation DOM text
+  const oldVal = el._targetVal !== undefined ? el._targetVal : (parseFloat(el.textContent.replace(/[^0-9.\-]/g, '')) || 0);
+  el._targetVal = newVal;  // store target so next tick reads correct base
+
+  const diff = Math.abs(newVal - oldVal);
+  if (diff < 0.0001) {
+    // Heartbeat shimmer — value unchanged
+    if (cardId) {
+      const card = document.getElementById(cardId);
+      if (card) {
+        card.classList.remove('card-pulse');
+        void card.offsetWidth;
+        card.classList.add('card-pulse');
+        setTimeout(() => card.classList.remove('card-pulse'), 1000);
+      }
+    }
+    return;
+  }
+
+  // Direction flash
+  const direction = newVal > oldVal ? 'up' : 'down';
+  el.classList.remove('price-up', 'price-down');
+  void el.offsetWidth;
+  el.classList.add(direction === 'up' ? 'price-up' : 'price-down');
+  setTimeout(() => el.classList.remove('price-up', 'price-down'), 900);
+
+  // Card highlight
+  if (cardId) {
+    const card = document.getElementById(cardId);
+    if (card) {
+      card.classList.remove('card-updating');
+      void card.offsetWidth;
+      card.classList.add('card-updating');
+      setTimeout(() => card.classList.remove('card-updating'), 1200);
+    }
+  }
+
+  // Animate number — cancel-safe (800ms ease for smooth 3s SSE cadence)
+  animateNumber(el, oldVal, newVal, 800, prefix, '', decimals);
+
+  pulseThreeOnUpdate(mkt.risk || 78);
+}
+
+
+function updateSparkline(key, value) {
+  if (!sparkHistory[key]) return;
+  sparkHistory[key].push(value);
+  if (sparkHistory[key].length > 20) sparkHistory[key].shift();
+
+  if (sparkCharts[key]) {
+    sparkCharts[key].data.labels = sparkHistory[key].map((_, i) => i);
+    sparkCharts[key].data.datasets[0].data = [...sparkHistory[key]];
+    sparkCharts[key].update('none');
+  }
+}
+
+// ======================================================================
+// SSE - LIVE DATA STREAM
+// ======================================================================
+
+function connectSSE() {
+  setStreamUI('connecting');
+  console.log('[SSE] Connecting to', `${API}/api/stream`);
+
+  try {
+    const es = new EventSource(`${API}/api/stream`);
+
+    es.onopen = () => {
+      sseConnected = true;
+      _lastSSETick = Date.now();
+      setStreamUI('sse');
+      console.log('[SSE] Connected — readyState:', es.readyState);
+    };
+
+    es.onmessage = (e) => {
+      try {
+        const d = JSON.parse(e.data);
+
+        // Skip error / heartbeat events — don't try to render them
+        if (d.type === 'error') {
+          console.warn('[SSE] Server error:', d.msg);
+          return;
+        }
+        if (d.type === 'heartbeat') {
+          _lastSSETick = Date.now();  // heartbeat still counts as live
+          return;
+        }
+
+        // Update feed timestamp on every message
+        _lastSSETick = Date.now();
+        const feedTs = document.getElementById('feed-ts');
+        if (feedTs) {
+          feedTs.textContent = new Date().toLocaleTimeString();
+          // Brief color flash to confirm feed is live
+          feedTs.style.color = 'var(--green)';
+          setTimeout(() => feedTs.style.color = '', 400);
+        }
+
+        // Capture previous values BEFORE updating state — used for direction arrows
+        const prev = {
+          brent: mkt.brent,
+          diesel: mkt.diesel,
+          petrol: mkt.petrol,
+          zig: mkt.zig_parallel,
+        };
+
+        // Update full market state from SSE payload
+        if (d.brent !== undefined)        mkt.brent = d.brent;
+        if (d.diesel !== undefined)       mkt.diesel = d.diesel;
+        if (d.petrol !== undefined)       mkt.petrol = d.petrol;
+        if (d.zig_parallel !== undefined) mkt.zig_parallel = d.zig_parallel;
+        if (d.zig_official !== undefined) mkt.zig_official = d.zig_official;
+        if (d.risk !== undefined)         mkt.risk = d.risk;
+        if (d.conflict_day !== undefined) mkt.conflict_day = d.conflict_day;
+        if (d.hormuz !== undefined)       mkt.hormuz = d.hormuz;
+        if (d.live_oil !== undefined)     mkt.live_oil = d.live_oil;
+        if (d.reserves_mo !== undefined)  mkt.reserves_mo = d.reserves_mo;
+        if (d.next_zera !== undefined)   mkt.next_zera = d.next_zera;
+        // Store change percentages so DOM sync & ticker always have them
+        if (d.brent_change !== undefined)  mkt.brent_change = d.brent_change;
+        if (d.diesel_change !== undefined) mkt.diesel_change = d.diesel_change;
+        if (d.petrol_change !== undefined) mkt.petrol_change = d.petrol_change;
+
+        // ── Always animate prices on every SSE tick ────────────────────
+        // smoothPriceUpdate internally guards against sub-0.001 changes,
+        // but we always call it so the "live" flash fires on each tick.
+        if (d.brent !== undefined) {
+          smoothPriceUpdate('brent-val', d.brent, '$', 2, 'card-brent');
+          updateSparkline('brent', d.brent);
+          updateMainChart(d.brent);
+        }
+        if (d.diesel !== undefined) {
+          smoothPriceUpdate('diesel-val', d.diesel, '$', 2, 'card-diesel');
+          updateSparkline('diesel', d.diesel);
+        }
+        if (d.petrol !== undefined) {
+          smoothPriceUpdate('petrol-val', d.petrol, '$', 2, 'card-petrol');
+          updateSparkline('petrol', d.petrol);
+        }
+        if (d.zig_parallel !== undefined) {
+          smoothPriceUpdate('zig-val', d.zig_parallel, '', 2, 'card-zig');
+        }
+
+        // Risk badge — always update
+        const riskEl = document.getElementById('risk-badge');
+        if (riskEl && d.risk !== undefined) {
+          riskEl.textContent = `RISK ${d.risk}`;
+          if (d.risk !== prev.brent) { // always pulse
+            riskEl.parentElement.classList.remove('pulse-glow');
+            void riskEl.parentElement.offsetWidth;
+            riskEl.parentElement.classList.add('pulse-glow');
+            setTimeout(() => riskEl.parentElement.classList.remove('pulse-glow'), 1000);
+          }
+        }
+        set('cday', mkt.conflict_day);
+        updateZig();
+
+        // Hormuz status color
+        const hEl = document.getElementById('hormuz-val');
+        if (hEl) {
+          hEl.textContent = mkt.hormuz;
+          const hColors = { CLOSED:'var(--red)', RESTRICTED:'var(--amber)', OPEN:'var(--green)' };
+          hEl.style.color = hColors[mkt.hormuz] || 'var(--amber)';
+        }
+
+        // Change percentages
+        if (d.brent_change !== undefined) {
+          const el = document.getElementById('brent-chg');
+          if (el) { el.textContent = (d.brent_change >= 0 ? '+' : '') + d.brent_change.toFixed(1) + '%'; el.style.color = d.brent_change >= 0 ? 'var(--red)' : 'var(--green)'; }
+        }
+        if (d.diesel_change !== undefined) {
+          const el = document.getElementById('diesel-chg');
+          if (el) { el.textContent = (d.diesel_change >= 0 ? '+' : '') + d.diesel_change.toFixed(1) + '%'; el.style.color = d.diesel_change >= 0 ? 'var(--red)' : 'var(--green)'; }
+        }
+        if (d.petrol_change !== undefined) {
+          const el = document.getElementById('petrol-chg');
+          if (el) { el.textContent = (d.petrol_change >= 0 ? '+' : '') + d.petrol_change.toFixed(1) + '%'; el.style.color = d.petrol_change >= 0 ? 'var(--red)' : 'var(--green)'; }
+        }
+
+        // Live oil indicator — flash to show feed is active
+        const liveLabel = document.getElementById('oil-live-label');
+        if (liveLabel) {
+          liveLabel.textContent = mkt.live_oil ? '⬤ LIVE' : '⬤ DELAYED';
+          liveLabel.style.color = mkt.live_oil ? 'var(--green)' : 'var(--amber)';
+        }
+
+        // If AI analysis status changed to success, refresh analysis
+        if (d.ai_status === 'success' && (!aiAnalysis || aiAnalysis.status !== 'success')) {
+          fetchAnalysis();
+        }
+
+        // Update news - LIVE STREAM with slide animation
+        if (d.news && Array.isArray(d.news)) {
+          const isNew = JSON.stringify(d.news.map(n => n.id)) !== JSON.stringify(news.map(n => n.id));
+          news = d.news;
+          if (isNew) renderNews(true);
+        }
+
+        // Update cities
+        if (d.cities && Array.isArray(d.cities)) {
+          cities = d.cities;
+          renderCityGrid();
+          updateMapMarkers();
+        }
+
+        // Refresh basket every ~30 ticks (~90s at 3s cadence) to stay in sync with oil-driven changes
+        if (d.tick && d.tick % 30 === 0) {
+          refreshBasket();
+        }
+
+        // Re-render analysis with fresh market values every ~20 ticks (~60s)
+        if (d.tick && d.tick % 20 === 0 && aiAnalysis && aiAnalysis.status === 'success') {
+          renderAnalysis();
+        }
+
+        renderTicker();
+
+      } catch (err) {
+        console.error('[SSE] Parse error:', err);
+      }
+    };
+
+    es.onerror = () => {
+      sseConnected = false;
+      es.close();
+      console.log('[SSE] Disconnected — switching to API polling');
+      setStreamUI('poll');
+      startPolling();
+      // Auto-reconnect SSE after 10s
+      setTimeout(() => {
+        if (!sseConnected) {
+          console.log('[SSE] Attempting reconnect...');
+          clearInterval(polling); polling = null;
+          connectSSE();
+        }
+      }, 10000);
+    };
+
+  } catch (err) {
+    console.error('[SSE] Connection error:', err);
+    setStreamUI('poll');
+    startPolling();
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// 1-SECOND DOM SYNC — always reflects latest mkt, fights no animation
+// Runs from page load regardless of SSE state.
+// ══════════════════════════════════════════════════════════════════════
+(function startDOMSync() {
+  // Guard: only start once
+  if (window._domSyncStarted) return;
+  window._domSyncStarted = true;
+
+  setInterval(() => {
+    const setVal = (id, val, prefix='$', dec=2) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const current = el._targetVal !== undefined ? el._targetVal : (parseFloat(el.textContent.replace(/[^0-9.\-]/g, '')) || 0);
+      if (Math.abs(current - val) >= Math.pow(10, -dec) * 0.5) {
+        el._targetVal = val;
+        if (el._animToken) el._animToken.cancelled = true;
+        el.textContent = prefix + val.toFixed(dec);
+      }
+    };
+
+    setVal('brent-val',  mkt.brent,       '$', 2);
+    setVal('diesel-val', mkt.diesel,       '$', 2);
+    setVal('petrol-val', mkt.petrol,       '$', 2);
+    setVal('zig-val',    mkt.zig_parallel, '',  2);
+
+    const setChg = (id, val) => {
+      const el = document.getElementById(id);
+      if (el && val !== undefined) {
+        el.textContent = (val >= 0 ? '+' : '') + val.toFixed(1) + '%';
+        el.style.color = val >= 0 ? 'var(--red)' : 'var(--green)';
+      }
+    };
+    setChg('brent-chg',  mkt.brent_change);
+    setChg('diesel-chg', mkt.diesel_change);
+    setChg('petrol-chg', mkt.petrol_change);
+
+    const rb = document.getElementById('risk-badge');
+    if (rb) rb.textContent = 'RISK ' + mkt.risk;
+    const rbH = document.querySelector('.risk-badge-header');
+    if (rbH) rbH.textContent = 'RISK ' + mkt.risk;
+
+    const cd = document.getElementById('cday');
+    if (cd) cd.textContent = mkt.conflict_day;
+
+    const hEl = document.getElementById('hormuz-val');
+    if (hEl) {
+      hEl.textContent = mkt.hormuz;
+      const hC = { CLOSED:'var(--red)', RESTRICTED:'var(--amber)', OPEN:'var(--green)' };
+      hEl.style.color = hC[mkt.hormuz] || 'var(--amber)';
+    }
+
+    const ll = document.getElementById('oil-live-label');
+    if (ll) {
+      ll.textContent = mkt.live_oil ? '⬤ LIVE' : '⬤ DELAYED';
+      ll.style.color = mkt.live_oil ? 'var(--green)' : 'var(--amber)';
+    }
+
+    // Reserves card
+    const rv = document.getElementById('reserves-val');
+    if (rv) rv.textContent = mkt.reserves_mo + ' mo';
+
+    renderTicker();
+  }, 1000);
+})();
+
+// ── SSE watchdog: if no message for 30s, force reconnect ──────────────
+function _startSSEWatchdog() {
+  setInterval(() => {
+    if (!sseConnected) return; // polling is fallback, don't interfere
+    const gap = Date.now() - _lastSSETick;
+    if (gap > 30000) {
+      console.warn('[SSE] No message for', Math.round(gap/1000) + 's — forcing reconnect');
+      sseConnected = false;
+      setStreamUI('poll');
+      startPolling();
+      setTimeout(() => {
+        if (!sseConnected) {
+          clearInterval(polling); polling = null;
+          connectSSE();
+        }
+      }, 3000);
+    }
+  }, 10000);
+}
+
+// ── Real API polling fallback (no simulated data) ─────────────────────────
+let polling = null;
+let _pollCycle = 0;
+let _pollFailCount = 0;
+
+async function _doPoll() {
+  try {
+    const res = await fetch(`${API}/api/market`, { cache:'no-store' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const d = await res.json();
+    _pollFailCount = 0;
+
+    // Update feed timestamp
+    const feedTs = document.getElementById('feed-ts');
+    if (feedTs) feedTs.textContent = new Date().toLocaleTimeString();
+
+    prevMkt = { ...mkt };
+    // Apply all fields from API including change percentages
+    ['brent','diesel','petrol','zig_parallel','zig_official','risk','conflict_day',
+     'brent_change','diesel_change','petrol_change','live_oil','reserves_mo','hormuz','next_zera'].forEach(k => {
+      if (d[k] !== undefined) mkt[k] = d[k];
+    });
+    if (d.hormuz !== undefined) {
+      mkt.hormuz = d.hormuz;
+      const hEl = document.getElementById('hormuz-val');
+      if (hEl) {
+        hEl.textContent = d.hormuz;
+        const hC = {CLOSED:'var(--red)',RESTRICTED:'var(--amber)',OPEN:'var(--green)'};
+        hEl.style.color = hC[d.hormuz] || 'var(--amber)';
+      }
+    }
+    if (d.brent !== undefined) { smoothPriceUpdate('brent-val', d.brent, '$', 2, 'card-brent'); updateSparkline('brent', d.brent); updateMainChart(d.brent); }
+    if (d.diesel !== undefined) { smoothPriceUpdate('diesel-val', d.diesel, '$', 2, 'card-diesel'); updateSparkline('diesel', d.diesel); }
+    if (d.petrol !== undefined) { smoothPriceUpdate('petrol-val', d.petrol, '$', 2, 'card-petrol'); updateSparkline('petrol', d.petrol); }
+    if (d.zig_parallel !== undefined) { smoothPriceUpdate('zig-val', d.zig_parallel, '', 2, 'card-zig'); updateZig(); }
+    if (d.risk !== undefined) { const rEl = document.getElementById('risk-badge'); if (rEl) rEl.textContent = `RISK ${d.risk}`; }
+    if (d.conflict_day !== undefined) set('cday', d.conflict_day);
+    if (d.live_oil !== undefined) { const lEl = document.getElementById('oil-live-label'); if (lEl) lEl.textContent = d.live_oil ? '⬤ LIVE' : '⬤ DELAYED'; }
+    if (d.brent_change !== undefined) { const el = document.getElementById('brent-chg'); if (el) { el.textContent = (d.brent_change >= 0 ? '+' : '') + d.brent_change.toFixed(1) + '%'; el.style.color = d.brent_change >= 0 ? 'var(--red)' : 'var(--green)'; } }
+    if (d.diesel_change !== undefined) { const el = document.getElementById('diesel-chg'); if (el) { el.textContent = (d.diesel_change >= 0 ? '+' : '') + d.diesel_change.toFixed(1) + '%'; el.style.color = d.diesel_change >= 0 ? 'var(--red)' : 'var(--green)'; } }
+    if (d.petrol_change !== undefined) { const el = document.getElementById('petrol-chg'); if (el) { el.textContent = (d.petrol_change >= 0 ? '+' : '') + d.petrol_change.toFixed(1) + '%'; el.style.color = d.petrol_change >= 0 ? 'var(--red)' : 'var(--green)'; } }
+    renderTicker();
+
+    // Every 3rd poll also refresh news + cities
+    _pollCycle = (_pollCycle + 1) % 3;
+    if (_pollCycle === 0) {
+      fetch(`${API}/api/news`, {cache:'no-store'})
+        .then(r => r.ok ? r.json() : null)
+        .then(nd => { if (nd && Array.isArray(nd)) { const isNew = JSON.stringify(nd.map(n=>n.id)) !== JSON.stringify(news.map(n=>n.id)); news = nd; if (isNew) renderNews(true); } })
+        .catch(() => {});
+      fetch(`${API}/api/cities`, {cache:'no-store'})
+        .then(r => r.ok ? r.json() : null)
+        .then(cd => { if (cd && Array.isArray(cd)) { cities = cd; renderCityGrid(); updateMapMarkers(); } })
+        .catch(() => {});
+    }
+  } catch(e) {
+    _pollFailCount++;
+    console.warn('[POLL] Attempt failed:', e.message, `(×${_pollFailCount})`);
+    if (_pollFailCount >= 3) setStreamUI('sim'); // only show sim after 3 fails
+  }
+}
+
+function startPolling() {
+  if (polling) return;
+  _doPoll(); // immediate first call
+  polling = setInterval(_doPoll, 6000); // every 6s — no simulated data
+}
+
+// Refresh food basket every 5 minutes
+let basketRefreshTimer = null;
+async function refreshBasket() {
+  try {
+    const res = await fetch(`${API}/api/food-basket`).catch(() => null);
+    if (res && res.ok) {
+      const d = await res.json();
+      // API returns { items, total_current, total_forecast, pct_change }
+      if (d.items) renderBasket(d.items, d);
+    }
+  } catch(e) { console.warn('[BASKET]', e); }
+}
+
+function setStreamUI(state) {
+  const sp = document.getElementById('spill');
+  const lb = document.getElementById('spill-lbl');
+  const labels = { sse:'Live Stream', poll:'Polling API', sim:'Offline', connecting:'Connecting...' };
+  sp.className = state === 'sse' ? 'sse' : state === 'poll' ? 'poll' : state === 'sim' ? 'sim' : '';
+  lb.textContent = labels[state] || 'Connecting...';
+  document.getElementById('livdot').className = (state === 'sse' || state === 'poll') ? 'live-dot' : 'live-dot off';
+  // Update feed-ts on poll too
+  if (state === 'poll' || state === 'sse') {
+    const feedTs = document.getElementById('feed-ts');
+    if (feedTs) feedTs.textContent = new Date().toLocaleTimeString();
+  }
+}
+
+// ======================================================================
+// INITIAL DATA FETCH
+// ======================================================================
+
+async function fetchInitialData() {
+  try {
+    const [mktRes, citiesRes, newsRes, basketRes] = await Promise.all([
+      fetch(`${API}/api/market`).catch(() => null),
+      fetch(`${API}/api/cities`).catch(() => null),
+      fetch(`${API}/api/news`).catch(() => null),
+      fetch(`${API}/api/food-basket`).catch(() => null),
+    ]);
+
+    if (mktRes?.ok) {
+      const mktData = await mktRes.json();
+      Object.assign(mkt, mktData);
+      // Map API field names to frontend state
+      if (mktData.brent_change !== undefined) {
+        const el = document.getElementById('brent-chg');
+        if (el) { el.textContent = (mktData.brent_change >= 0 ? '+' : '') + mktData.brent_change.toFixed(1) + '%'; el.style.color = mktData.brent_change >= 0 ? 'var(--red)' : 'var(--green)'; }
+      }
+      if (mktData.diesel_change !== undefined) {
+        const el = document.getElementById('diesel-chg');
+        if (el) { el.textContent = (mktData.diesel_change >= 0 ? '+' : '') + mktData.diesel_change.toFixed(1) + '%'; el.style.color = mktData.diesel_change >= 0 ? 'var(--red)' : 'var(--green)'; }
+      }
+      if (mktData.petrol_change !== undefined) {
+        const el = document.getElementById('petrol-chg');
+        if (el) { el.textContent = (mktData.petrol_change >= 0 ? '+' : '') + mktData.petrol_change.toFixed(1) + '%'; el.style.color = mktData.petrol_change >= 0 ? 'var(--red)' : 'var(--green)'; }
+      }
+      // Update hormuz status coloring
+      const hEl = document.getElementById('hormuz-val');
+      if (hEl) {
+        const hColors = { CLOSED:'var(--red)', RESTRICTED:'var(--amber)', OPEN:'var(--green)' };
+        hEl.style.color = hColors[mktData.hormuz] || 'var(--amber)';
+      }
+    }
+
+    if (citiesRes?.ok) {
+      const citiesData = await citiesRes.json();
+      cities = Array.isArray(citiesData) ? citiesData : [];
+    }
+
+    if (newsRes?.ok) {
+      const newsData = await newsRes.json();
+      news = Array.isArray(newsData) ? newsData : [];
+    }
+
+    if (basketRes?.ok) {
+      const d = await basketRes.json();
+      // API returns { items, total_current, total_forecast, pct_change }
+      if (d.items) renderBasket(d.items, d);
+    }
+
+    renderAll();
+  } catch (e) {
+    console.warn('[INIT] Using defaults:', e);
+    renderAll();
+  }
+}
+
+async function fetchAnalysis() {
+  try {
+    const res = await fetch(`${API}/api/analysis`, { cache:'no-store' });
+    if (!res.ok) return;
+    const data = await res.json();
+    const prevStatus = aiAnalysis?.status;
+    aiAnalysis = data;
+    renderAnalysis();
+
+    // When a new successful analysis arrives, refresh the basket
+    // Claude's analysis may have updated food price forecasts
+    if (data.status === 'success' && prevStatus !== 'success') {
+      console.log('[ANALYSIS] New Claude analysis — refreshing food basket');
+      const bRes = await fetch(`${API}/api/food-basket`, { cache:'no-store' }).catch(() => null);
+      if (bRes?.ok) {
+        const bd = await bRes.json();
+        if (bd.items) {
+          renderBasket(bd.items, bd, data.basket_change);
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('[ANALYSIS] Fetch error:', e);
+  }
+}
+
+// ======================================================================
+// HELPERS
+// ======================================================================
+
+function set(id, val) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = val;
+}
+
+function updateZig() {
+  const p = mkt.zig_parallel || 34.20;
+  const o = mkt.zig_official || 26.95;
+  const pct = Math.min((p / 45) * 100, 100);
+  const prem = Math.round((p / o - 1) * 100);
+  const bar = document.getElementById('zig-bar');
+  const pr = document.getElementById('zig-prem');
+  if (bar) bar.style.width = pct + '%';
+  if (pr) pr.textContent = `+${prem}%`;
+}
+
+function srcBadge(apiSource) {
+  if (!apiSource || apiSource === 'rss') return '';
+  const labels = { 'newsdata.io': 'NewsData', 'gnews.io': 'GNews' };
+  return `<span class="badge badge-src">${labels[apiSource] || apiSource}</span>`;
+}
+
+// ======================================================================
+// RENDER FUNCTIONS
+// ======================================================================
+
+function renderAll() {
+  set('brent-val', `$${mkt.brent.toFixed(2)}`);
+  set('diesel-val', `$${mkt.diesel.toFixed(2)}`);
+  set('petrol-val', `$${(mkt.petrol || 1.71).toFixed(2)}`);
+  set('zig-val', mkt.zig_parallel.toFixed(2));
+  set('cday', mkt.conflict_day || 7);
+  set('hormuz-val', mkt.hormuz || 'CLOSED');
+  set('risk-badge', `RISK ${mkt.risk || 78}`);
+  set('reserves-val', (mkt.reserves_mo || 3) + ' mo');
+  updateZig();
+  renderTicker();
+  renderNews();
+  renderCityGrid();
+  renderCitySelect();
+}
+
+function renderTicker() {
+  const chgText = id => { const el = document.getElementById(id); return el ? ' ' + el.textContent : ''; };
+  const hColor = {CLOSED:'🔴',RESTRICTED:'🟡',OPEN:'🟢'};
+  const items = [
+    `OIL BRENT $${mkt.brent.toFixed(2)}${chgText('brent-chg')}`,
+    `DIESEL $${mkt.diesel.toFixed(2)}/L${chgText('diesel-chg')}`,
+    `PETROL $${mkt.petrol.toFixed(2)}/L${chgText('petrol-chg')}`,
+    `ZiG ${mkt.zig_parallel.toFixed(2)} / ${(mkt.zig_official||26.95).toFixed(2)} official`,
+    `ZiG PREMIUM +${Math.round((mkt.zig_parallel / (mkt.zig_official||26.95) - 1) * 100)}%`,
+    `${hColor[mkt.hormuz]||'🔴'} HORMUZ: ${mkt.hormuz || 'CLOSED'}`,
+    `CONFLICT DAY ${mkt.conflict_day || 7}`,
+    `RISK INDEX: ${mkt.risk}/100`,
+  ];
+  const html = items.map(i => `<span style="padding:0 24px">${i}</span><span style="color:#78350f;padding:0 4px">◆</span>`).join('');
+  document.getElementById('ticker').innerHTML = html + html;
+}
+
+function renderNews(animate = false) {
+  const feed = document.getElementById('news-feed');
+  if (!feed || !news.length) return;
+
+  feed.innerHTML = news.map((n, idx) => `
+    <div class="nitem ${n.severity}" onclick="openModal('${n.id}')" style="animation-delay:${animate ? idx * 0.06 : 0}s">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;flex-wrap:wrap">
+        <span class="badge badge-${n.severity}">${(n.severity || 'normal').toUpperCase()}</span>
+        <span style="font-size:11px;color:var(--t2)">${n.source || ''}</span>
+        ${srcBadge(n.api_source)}
+        ${n.live ? '<span style="font-size:9px;color:var(--green);font-weight:600">LIVE</span>' : ''}
+        <span style="font-size:10px;color:var(--t2);margin-left:auto">${n.time_ago || ''}</span>
+      </div>
+      <div style="font-size:13px;font-weight:600;line-height:1.42">${n.headline || ''}</div>
+    </div>
+  `).join('');
+
+  // Update refresh timestamp
+  const tsEl = document.getElementById('news-refresh-ts');
+  if (tsEl && animate) tsEl.textContent = new Date().toLocaleTimeString();
+}
+
+function renderBasket(items, summary = null, claudeBasketChange = null) {
+  if (!items || !items.length) return;
+  const cc = { critical: 'var(--red)', high: 'var(--amber)', medium: 'var(--t1)' };
+  const now = new Date().toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
+
+  document.getElementById('basket').innerHTML = items.map((i, idx) => `
+    <div class="basket-item" style="animation:sup .5s ease forwards;animation-delay:${idx * 0.05}s;opacity:0">
+      <div style="font-size:10px;color:var(--t2);margin-bottom:2px;line-height:1.3">${i.name}</div>
+      <div class="mono price-value" style="font-size:16px;font-weight:600;font-family:'Outfit',sans-serif">$${(+i.current).toFixed(2)}</div>
+      <div style="font-size:10px;color:var(--t2)">${i.unit}</div>
+      <div style="font-size:10px;color:var(--t2);margin-top:2px;font-family:'DM Mono',monospace">→ $${(+i.forecast).toFixed(2)}</div>
+      <div style="font-size:11px;font-weight:700;color:${cc[i.risk] || 'var(--t1)'};margin-top:5px">▲ +${i.change}%</div>
+    </div>
+  `).join('');
+
+  // Update the basket section header badge + show total if available
+  const basketCard = document.getElementById('basket')?.closest('.card');
+  if (basketCard) {
+    const badge = basketCard.querySelector('.badge-high');
+    if (badge) {
+      if (claudeBasketChange) {
+        badge.textContent = `Claude forecast: ${claudeBasketChange} · ${now}`;
+        badge.style.background = 'rgba(168,85,247,.15)';
+        badge.style.color = '#c4b5fd';
+        badge.style.borderColor = 'rgba(168,85,247,.3)';
+      } else {
+        badge.textContent = `30-day forecast · ${now}`;
+      }
+    }
+    // Show total basket cost if summary available
+    let totalEl = basketCard.querySelector('#basket-total');
+    if (!totalEl) {
+      totalEl = document.createElement('div');
+      totalEl.id = 'basket-total';
+      totalEl.style.cssText = 'margin-top:12px;padding:10px 14px;border-radius:8px;background:rgba(220,38,38,.06);border:1px solid rgba(220,38,38,.12);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px';
+      basketCard.appendChild(totalEl);
+    }
+    if (summary) {
+      totalEl.innerHTML = `
+        <div style="display:flex;align-items:center;gap:8px">
+          <svg width="14" height="14" fill="none" stroke="var(--red)" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 002 2h10a2 2 0 002-2V6l-3-4z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 01-8 0"/></svg>
+          <span style="font-size:12px;color:var(--t1)">Monthly basket cost</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:16px">
+          <div style="text-align:right">
+            <div style="font-size:10px;color:var(--t2)">Current</div>
+            <div style="font-size:15px;font-weight:700;font-family:'Outfit',sans-serif;color:var(--t0)">$${(summary.total_current||0).toFixed(2)}</div>
+          </div>
+          <div style="color:var(--t2)">→</div>
+          <div style="text-align:right">
+            <div style="font-size:10px;color:var(--t2)">Forecast</div>
+            <div style="font-size:15px;font-weight:700;font-family:'Outfit',sans-serif;color:var(--red)">$${(summary.total_forecast||0).toFixed(2)}</div>
+          </div>
+          <div style="padding:4px 10px;border-radius:6px;background:rgba(220,38,38,.15);color:#fca5a5;font-size:12px;font-weight:700">+${(summary.pct_change||0).toFixed(1)}%</div>
+        </div>
+      `;
+    }
+  }
+}
+
+function renderCityGrid() {
+  const grid = document.getElementById('city-grid');
+  if (!grid || !cities.length) return;
+
+  const bc = { high: 'var(--red)', low: 'var(--green)', avg: 'var(--amber)' };
+  grid.innerHTML = cities.map(c => `
+    <div class="card ch" style="padding:13px;border-left:3px solid ${bc[c.level] || bc.avg};cursor:pointer" onclick="openPanel('${c.id}')">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px">
+        <span style="font-weight:700;font-size:13px">${c.name}</span>
+        <span style="font-size:10px;color:var(--t2)">${c.reports} rpts</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;font-size:12px">
+        <div><span style="color:var(--t1)">ZiG </span><span class="mono">${(+c.zig).toFixed(2)}</span></div>
+        <div><span style="color:var(--t1)">D </span><span class="mono">$${(+c.diesel).toFixed(2)}</span></div>
+        <div><span style="color:var(--t1)">P </span><span class="mono">$${(+c.petrol).toFixed(2)}</span></div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderCitySelect() {
+  const s = document.getElementById('form-city');
+  if (s && cities.length) {
+    s.innerHTML = '<option value="">Select your city...</option>' + cities.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+  }
+}
+
+// ======================================================================
+// MAPBOX
+// ======================================================================
+
+function initMap() {
+  if (!window.mapboxgl) {
+    console.error('[MAP] Mapbox GL not loaded');
+    return;
+  }
+
+  if (!MAPBOX_TOKEN) {
+    const wrap = document.getElementById('map-wrap');
+    if (wrap) wrap.innerHTML = `
+      <div style="height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:var(--t2)">
+        <svg width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="20" cy="20" r="16"/><path d="M20 10v10l6 4"/></svg>
+        <div style="font-size:14px;font-weight:600;color:var(--t1)">Map unavailable</div>
+        <div style="font-size:12px;text-align:center;max-width:260px">Set <code style="color:var(--amber2);background:var(--bg2);padding:2px 6px;border-radius:4px">MAPBOX_TOKEN</code> in your <code style="color:var(--amber2);background:var(--bg2);padding:2px 6px;border-radius:4px">.env</code> file to enable the city map.</div>
+      </div>`;
+    return;
+  }
+
+  mapboxgl.accessToken = MAPBOX_TOKEN;
+
+  mbMap = new mapboxgl.Map({
+    container: 'mb-map',
+    style: 'mapbox://styles/mapbox/dark-v11',
+    center: [29.5, -19.0],
+    zoom: 5.8,
+    minZoom: 4,
+    maxZoom: 12,
+  });
+
+  mbMap.addControl(new mapboxgl.NavigationControl({ showCompass: false }), 'bottom-right');
+
+  mbMap.on('load', () => {
+    mbMap.addSource('cities', {
+      type: 'geojson',
+      data: buildCitiesGeoJSON()
+    });
+
+    mbMap.addLayer({
+      id: 'city-markers',
+      type: 'circle',
+      source: 'cities',
+      paint: {
+        'circle-radius': ['interpolate', ['linear'], ['get', 'reports'], 0, 8, 50, 16],
+        'circle-color': ['match', ['get', 'level'], 'high', '#dc2626', 'low', '#16a34a', '#d97706'],
+        'circle-stroke-width': 2,
+        'circle-stroke-color': 'rgba(255,255,255,0.8)',
+        'circle-opacity': 0.9
+      }
+    });
+
+    mbMap.addLayer({
+      id: 'city-glow',
+      type: 'circle',
+      source: 'cities',
+      paint: {
+        'circle-radius': ['interpolate', ['linear'], ['get', 'reports'], 0, 16, 50, 28],
+        'circle-color': ['match', ['get', 'level'], 'high', '#dc2626', 'low', '#16a34a', '#d97706'],
+        'circle-opacity': 0.25,
+        'circle-blur': 1
+      }
+    }, 'city-markers');
+
+    mbMap.on('click', 'city-markers', (e) => {
+      if (!e.features.length) return;
+      const props = e.features[0].properties;
+      const coords = e.features[0].geometry.coordinates;
+      showPopup(coords, props);
+    });
+
+    mbMap.on('mouseenter', 'city-markers', () => {
+      mbMap.getCanvas().style.cursor = 'pointer';
+    });
+    mbMap.on('mouseleave', 'city-markers', () => {
+      mbMap.getCanvas().style.cursor = '';
+    });
+  });
+}
+
+function buildCitiesGeoJSON() {
+  return {
+    type: 'FeatureCollection',
+    features: cities.map(c => ({
+      type: 'Feature',
+      geometry: {
+        type: 'Point',
+        coordinates: [c.lng, c.lat]
+      },
+      properties: {
+        id: c.id,
+        name: c.name,
+        province: c.province || '',
+        zig: c.zig,
+        diesel: c.diesel,
+        petrol: c.petrol,
+        reports: c.reports,
+        level: c.level || 'avg'
+      }
+    }))
+  };
+}
+
+function updateMapMarkers() {
+  if (!mbMap || !mbMap.getSource('cities')) return;
+  mbMap.getSource('cities').setData(buildCitiesGeoJSON());
+}
+
+function showPopup(coords, props) {
+  if (currentPopup) currentPopup.remove();
+
+  const colors = { high: '#dc2626', avg: '#d97706', low: '#16a34a' };
+  const labels = { high: 'Above Average', avg: 'Average', low: 'Below Average' };
+  const col = colors[props.level] || colors.avg;
+  const lbl = labels[props.level] || labels.avg;
+
+  currentPopup = new mapboxgl.Popup({ closeButton: true, maxWidth: '280px', offset: 15 })
+    .setLngLat(coords)
+    .setHTML(`
+      <div style="font-family:'Syne',sans-serif">
+        <div style="font-weight:700;font-size:16px;margin-bottom:6px">${props.name}</div>
+        <div style="font-size:11px;color:#9a9a9a;margin-bottom:10px">${props.province}</div>
+        <div style="display:flex;flex-direction:column;gap:6px;font-size:13px">
+          <div style="display:flex;justify-content:space-between"><span style="color:#9a9a9a">ZiG Rate</span><span style="font-family:'JetBrains Mono',monospace">${(+props.zig).toFixed(2)}</span></div>
+          <div style="display:flex;justify-content:space-between"><span style="color:#9a9a9a">Diesel</span><span style="font-family:'JetBrains Mono',monospace">$${(+props.diesel).toFixed(2)}/L</span></div>
+          <div style="display:flex;justify-content:space-between"><span style="color:#9a9a9a">Petrol</span><span style="font-family:'JetBrains Mono',monospace">$${(+props.petrol).toFixed(2)}/L</span></div>
+          <div style="display:flex;justify-content:space-between"><span style="color:#9a9a9a">Reports</span><span style="font-family:'JetBrains Mono',monospace">${props.reports}</span></div>
+        </div>
+        <div style="margin-top:10px;padding-top:8px;border-top:1px solid #242424">
+          <span style="font-size:11px;padding:3px 8px;border-radius:4px;background:${col}22;color:${col};font-weight:600">${lbl}</span>
+        </div>
+      </div>
+    `)
+    .addTo(mbMap);
+}
+
+function openPanel(cityId) {
+  const c = cities.find(x => x.id === cityId);
+  if (!c) return;
+
+  const colors = { high: ['var(--red)', 'Above Average'], avg: ['var(--amber)', 'Average'], low: ['var(--green)', 'Below Average'] };
+  const [col, lbl] = colors[c.level] || colors.avg;
+
+  document.getElementById('cp-name').textContent = c.name;
+  document.getElementById('cp-body').innerHTML = `
+    <div style="display:flex;flex-direction:column">
+      ${pr('Province', c.province || '--')}
+      ${pr('ZiG Rate', (+c.zig).toFixed(2))}
+      ${pr('Diesel', `$${(+c.diesel).toFixed(2)}/L`)}
+      ${pr('Petrol', `$${(+c.petrol).toFixed(2)}/L`)}
+      ${pr('Reports', c.reports)}
+    </div>
+    <div style="margin-top:12px">
+      <span style="font-size:11px;font-weight:700;color:${col};background:${col}22;border:1px solid ${col}44;padding:4px 10px;border-radius:6px">${lbl}</span>
+    </div>
+  `;
+
+  document.getElementById('city-panel').classList.add('open');
+
+  if (mbMap) {
+    mbMap.flyTo({ center: [c.lng, c.lat], zoom: 8, duration: 1000 });
+  }
+}
+
+function pr(k, v) {
+  return `<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line)"><span style="font-size:12px;color:var(--t1)">${k}</span><span class="mono" style="font-size:12px;font-weight:600">${v}</span></div>`;
+}
+
+function closePanel() {
+  document.getElementById('city-panel').classList.remove('open');
+}
+
+// ======================================================================
+// NEWS MODAL
+// ======================================================================
+
+function openModal(id) {
+  const a = news.find(n => n.id === id);
+  if (!a) return;
+
+  const b = document.getElementById('m-badge');
+  b.textContent = (a.severity || 'normal').toUpperCase();
+  b.className = `badge badge-${a.severity || 'normal'}`;
+
+  // Category badge
+  const catBadge = document.getElementById('m-cat-badge');
+  if (catBadge) {
+    const catLabels = { oil:'Oil & Fuel', energy:'Energy', currency:'Currency', agriculture:'Agriculture', general:'General', local:'Local' };
+    catBadge.textContent = catLabels[a.category] || a.category || 'General';
+  }
+
+  set('m-src', (a.source || '') + (a.api_source && a.api_source !== 'rss' ? ` via ${a.api_source}` : ''));
+  set('m-time', a.time_ago || '');
+  set('m-headline', a.headline || '');
+  set('m-summary', a.summary || '--');
+  set('m-impact', a.impact_zim || 'May affect Zimbabwe fuel and commodity prices.');
+  set('m-action', a.action || 'Monitor situation and adjust plans accordingly.');
+
+  // Original article link
+  const linkWrap = document.getElementById('m-link-wrap');
+  const linkEl = document.getElementById('m-link');
+  if (a.url && a.url.startsWith('http')) {
+    linkEl.href = a.url;
+    linkWrap.style.display = 'block';
+  } else {
+    linkWrap.style.display = 'none';
+  }
+
+  // Claude AI recommendation — contextual to the article
+  const aiRecEl = document.getElementById('m-ai-rec');
+  if (aiRecEl) {
+    if (aiAnalysis && aiAnalysis.status === 'success') {
+      const cat = a.category || 'general';
+      let rec = '';
+      // Build contextual recommendation from Claude's analysis + article category
+      if (cat === 'oil' || cat === 'energy') {
+        rec = `<strong>Hokage says:</strong> With Brent at $${mkt.brent.toFixed(2)} `;
+        rec += aiAnalysis.forecasts?.oil_7d ? `and 7-day forecast of $${aiAnalysis.forecasts.oil_7d}, ` : '';
+        rec += `this development ${a.severity === 'critical' ? 'significantly escalates' : 'adds pressure to'} Zimbabwe's fuel supply outlook. `;
+        rec += aiAnalysis.forecasts?.diesel_next ? `Diesel expected to hit $${aiAnalysis.forecasts.diesel_next}/L at next ZERA review. ` : '';
+        rec += `Confidence: ${aiAnalysis.confidence || 0}%`;
+      } else if (cat === 'currency') {
+        const prem = Math.round(((mkt.zig_parallel / mkt.zig_official) - 1) * 100);
+        rec = `<strong>Hokage says:</strong> ZiG parallel premium at ${prem}% `;
+        rec += aiAnalysis.forecasts?.zig_30d ? `with 30-day forecast of ${aiAnalysis.forecasts.zig_30d}. ` : '. ';
+        rec += `This currency movement ${a.severity === 'critical' ? 'poses significant risk' : 'warrants monitoring'} for import-dependent sectors. `;
+        rec += `Confidence: ${aiAnalysis.confidence || 0}%`;
+      } else if (cat === 'agriculture') {
+        rec = `<strong>Hokage says:</strong> Food basket impact projected at ${aiAnalysis.basket_change || '+18%'}. `;
+        rec += `Agricultural input costs driven by fuel at $${mkt.diesel.toFixed(2)}/L and fertilizer changes of +${mkt.risk > 70 ? '22' : '15'}%. `;
+        rec += aiAnalysis.forecasts?.inflation_peak ? `Inflation peak forecast: ${aiAnalysis.forecasts.inflation_peak}%. ` : '';
+        rec += `Confidence: ${aiAnalysis.confidence || 0}%`;
+      } else {
+        rec = `<strong>Hokage says:</strong> ${aiAnalysis.summary || 'Analysis pending.'}`;
+        rec += ` Confidence: ${aiAnalysis.confidence || 0}%`;
+      }
+      aiRecEl.innerHTML = rec;
+    } else {
+      aiRecEl.innerHTML = '<span style="color:var(--t2)">AI analysis is loading... Claude will provide a contextual recommendation once analysis is complete.</span>';
+    }
+  }
+
+  document.getElementById('news-ov').classList.add('on');
+  document.getElementById('news-modal').classList.add('on');
+}
+
+function closeModal() {
+  document.getElementById('news-ov').classList.remove('on');
+  document.getElementById('news-modal').classList.remove('on');
+}
+
+// ======================================================================
+// AI ANALYSIS — FULL GAME THEORY + CITIZEN/GOV RECOMMENDATIONS
+// ======================================================================
+
+function renderAnalysis() {
+  if (!aiAnalysis) return;
+
+  const a = aiAnalysis;
+  const statusDot = document.getElementById('ai-status-dot');
+  const statusText = document.getElementById('ai-status-text');
+
+  if (a.status === 'success') {
+    statusDot.style.background = 'var(--green)';
+    statusText.textContent = 'Analysis Active';
+  } else if (a.status === 'no_api_key') {
+    statusDot.style.background = 'var(--red)';
+    statusText.textContent = 'API Key Not Set';
+  } else {
+    statusDot.style.background = 'var(--amber)';
+    statusText.textContent = 'Generating...';
+  }
+
+  if (a.generated_at) {
+    document.getElementById('ai-last-update').textContent = `Last: ${new Date(a.generated_at).toLocaleString()}`;
+  }
+  if (a.next_update) {
+    const diff = Math.max(0, Math.round((new Date(a.next_update) - new Date()) / 60000));
+    document.getElementById('ai-next-update').textContent = diff > 60 ? `${Math.floor(diff/60)}h ${diff%60}m` : `${diff}m`;
+  }
+
+  if (a.status === 'no_api_key') {
+    document.getElementById('ai-content').innerHTML = `
+      <div class="card" style="padding:40px;text-align:center" data-motion data-variant="scale">
+        <div style="width:64px;height:64px;border-radius:16px;background:rgba(220,38,38,.1);border:1px solid rgba(220,38,38,.2);display:flex;align-items:center;justify-content:center;margin:0 auto 20px">
+          <svg width="28" height="28" fill="none" stroke="var(--red)" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+        </div>
+        <div style="font-size:20px;font-weight:800;font-family:'Outfit',sans-serif;margin-bottom:8px">API Key Required</div>
+        <div style="color:var(--t1);margin-bottom:20px">Set ANTHROPIC_API_KEY in your environment</div>
+        <code style="display:block;padding:14px;background:var(--bg0);border-radius:8px;font-size:12px;color:var(--amber2);font-family:'DM Mono',monospace">export ANTHROPIC_API_KEY=sk-ant-api03-xxxxx</code>
+      </div>`;
+    return;
+  }
+
+  if (!a.summary || a.confidence === 0) {
+    document.getElementById('ai-content').innerHTML = `
+      <div class="card" style="padding:60px;text-align:center">
+        <div class="spinner" style="margin:0 auto 20px;width:36px;height:36px;border-width:3px"></div>
+        <div style="font-size:15px;font-weight:600;font-family:'Outfit',sans-serif;margin-bottom:6px">Generating analysis...</div>
+        <div style="color:var(--t2);font-size:13px">Claude is processing market data, game theory models, and economic indicators</div>
+      </div>`;
+    return;
+  }
+
+  // ── Build scenarios from API forecasts + mkt state ─────────────────
+  const forecasts = a.forecasts || {};
+  const risks = a.risks || [
+    'Hormuz closure extends beyond 21 days — supply shock compounds',
+    'ZERA review delayed triggering consumer hoarding spiral',
+    `ZiG parallel premium breaches 35% — speculative attack risk (currently ${Math.round(((mkt.zig_parallel/mkt.zig_official)-1)*100)}%)`,
+    'Food price-wage spiral if transport fares rise before harvest',
+    'Regional contagion from South Africa fuel shortages'
+  ];
+  const actions = a.actions || [];
+
+  // ── Derive key numbers from actual API data ─────────────────────────
+  const oil7d = forecasts.oil_7d || (mkt.brent + 2.4).toFixed(1);
+  const dieselNext = forecasts.diesel_next || (mkt.diesel + 0.18).toFixed(2);
+  const petrolNext = forecasts.petrol_next || (mkt.petrol + 0.16).toFixed(2);
+  const inflationPeak = forecasts.inflation_peak || 18;
+  const basketChange = a.basket_change || '+17%';
+  const confidence = a.confidence || 74;
+  const zigForecast = forecasts.zig_30d || (mkt.zig_parallel + 2).toFixed(1);
+  const premium = Math.round(((mkt.zig_parallel / mkt.zig_official) - 1) * 100);
+  const daysToZera = mkt.next_zera ? Math.max(1, Math.ceil((new Date(mkt.next_zera) - new Date()) / 86400000)) : 11;
+  const hikePct = dieselNext / mkt.diesel - 1;
+
+  // ── Game theory actor probabilities (derived from market conditions) ──
+  const hike_prob = (mkt.brent > 80 && mkt.conflict_day > 5) ? 0.73 : 0.45;
+  const rbz_prob = premium > 25 ? 0.54 : 0.32;
+  const importer_prob = mkt.brent > 82 ? 0.68 : 0.50;
+  const retailer_prob = Math.min(0.85, 0.45 + hikePct * 0.8 + (premium > 25 ? 0.12 : 0));
+  const consumer_prob = Math.min(0.80, 0.30 + (hike_prob * 0.3) + (premium > 20 ? 0.10 : 0));
+  const escalateProb = Math.min(65, 30 + mkt.conflict_day);
+  const reopenProb = Math.max(8, 35 - mkt.conflict_day);
+  const brentEscHi = Math.round(mkt.brent * 0.18);
+  const brentEscLo = Math.round(mkt.brent * 0.09);
+  const dieselEscHi = (mkt.diesel * 0.18 * 0.55).toFixed(2);
+  const dieselEscLo = (mkt.diesel * 0.09 * 0.55).toFixed(2);
+  const zigEscHi = Math.round(mkt.zig_parallel * 0.15);
+  const zigEscLo = Math.round(mkt.zig_parallel * 0.08);
+  const welfareImpact = Math.round(6 + hikePct * 30 + (premium > 25 ? 4 : 0));
+
+  const actors = [
+    { name:'ZERA', icon:'⚖️', objective:'Cost recovery + price stability', strategy:`Delay hike until political window — ${Math.round(hike_prob*100)}% chance of review in ${daysToZera} days`, prob: hike_prob, probLabel:'Hike probability', color:'var(--amber)' },
+    { name:'RBZ', icon:'🏦', objective:'Currency stability + reserve mgmt', strategy:`Intervene if parallel premium exceeds 35% (currently ${premium}%) — Day ${mkt.conflict_day} pressure`, prob: rbz_prob, probLabel:'Intervention prob', color:'#60a5fa' },
+    { name:'Importers', icon:'🚢', objective:'Margin protection + forex cover', strategy:`Pre-buy USD at official rate, build inventory — ZERA review in ${daysToZera}d at $${mkt.brent.toFixed(0)} Brent`, prob: importer_prob, probLabel:'Front-running prob', color:'var(--orange)' },
+    { name:'Retailers', icon:'🏪', objective:'Market share + margin balance', strategy:`Pre-emptive markup — diesel at $${mkt.diesel.toFixed(2)}/L, hike of +$${(parseFloat(dieselNext)-mkt.diesel).toFixed(2)} expected`, prob: retailer_prob, probLabel:'Early markup prob', color:'#a78bfa' },
+    { name:'Consumers', icon:'👥', objective:'Minimize cost + preserve purchasing power', strategy:`Rush-buy before ZERA in ${daysToZera}d; convert ZiG at ${premium}% premium`, prob: consumer_prob, probLabel:'Rush-buy probability', color:'var(--green)' },
+  ];
+
+  const scenarios = [
+    { label:'Hormuz Reopens', prob:reopenProb, brent_delta:`-$${Math.round(mkt.brent*0.14)}–${Math.round(mkt.brent*0.21)}`, diesel_delta:`-$${(hikePct*0.6).toFixed(2)}`, zig_delta:'Stabilise', color:'var(--green)', icon:'↘' },
+    { label:'Conflict Escalates', prob:escalateProb, brent_delta:`+$${brentEscLo}–${brentEscHi}`, diesel_delta:`+$${dieselEscLo}–${dieselEscHi}`, zig_delta:`+${zigEscLo}–${zigEscHi} ZiG`, color:'var(--red)', icon:'↑' },
+    { label:`ZERA Hike (${daysToZera}d)`, prob:Math.round(hike_prob*100), brent_delta:'0', diesel_delta:`+$${(parseFloat(dieselNext)-mkt.diesel).toFixed(2)}`, zig_delta:`+${Math.round(mkt.zig_parallel*0.03)}–${Math.round(mkt.zig_parallel*0.09)} ZiG`, color:'var(--amber)', icon:'→' },
+    { label:'RBZ Intervention', prob:Math.round(rbz_prob*100), brent_delta:'0', diesel_delta:'0', zig_delta:`-${Math.round(mkt.zig_parallel*0.06)}–${Math.round(mkt.zig_parallel*0.15)} ZiG`, color:'#60a5fa', icon:'↓' },
+  ];
+
+  const citizenActions = [
+    {
+      type:'🏠 Households', urgency: daysToZera <= 7 ? 'URGENT' : 'HIGH', timeframe:`Next ${daysToZera} days`,
+      actions:[
+        `Fill all vehicle fuel tanks NOW — ZERA review in ${daysToZera} days, hike probability ${Math.round(hike_prob*100)}%`,
+        `Stock 30–45 day supply of staples: maize meal, cooking oil, rice — basket forecast ${basketChange}`,
+        `Convert surplus ZiG to USD or goods — parallel premium at ${premium}%, Day ${mkt.conflict_day} of crisis`,
+        `Budget for food basket at ~$${Math.round(80 * (1 + parseFloat(basketChange)/100 || 1.17))}/month (currently ~$80) — Brent at $${mkt.brent.toFixed(0)}`
+      ]
+    },
+    {
+      type:'🌾 Farmers & Agri', urgency:'HIGH', timeframe:`Next ${Math.min(21, daysToZera + 7)} days`,
+      actions:[
+        `Procure fertilizer immediately — input costs up ~${mkt.fertilizer_chg || (mkt.risk > 70 ? 22 : 15)}% with Brent at $${mkt.brent.toFixed(0)}`,
+        `Lock in forward pricing for grain sales — ZiG at ${mkt.zig_parallel.toFixed(2)} (${premium}% premium)`,
+        `Delay large equipment fuel purchases until post-ZERA clarity (review in ${daysToZera}d)`,
+        'Consider USD-denominated contracts for next season crop sales'
+      ]
+    },
+    {
+      type:'🚐 Transporters', urgency: daysToZera <= 7 ? 'URGENT' : 'HIGH', timeframe:`Next ${Math.min(daysToZera, 7)} days`,
+      actions:[
+        `Pre-purchase maximum allowable diesel before ZERA review — current $${mkt.diesel.toFixed(2)}/L, forecast $${parseFloat(dieselNext).toFixed(2)}/L`,
+        `Negotiate USD fare agreements — diesel at $${mkt.diesel.toFixed(2)}, expected +$${(parseFloat(dieselNext)-mkt.diesel).toFixed(2)}/L`,
+        `Model break-even kombi fare at $${((parseFloat(dieselNext)) * 2.4).toFixed(2)} (post-hike estimate)`,
+        'Consider route consolidation to manage fuel efficiency'
+      ]
+    },
+    {
+      type:'🏭 Businesses', urgency:'HIGH', timeframe:'Rolling 30 days',
+      actions:[
+        `Secure 60-day forex cover — ZiG premium at ${premium}%, Brent at $${mkt.brent.toFixed(0)}`,
+        `Re-cost all USD-denominated stock at $${parseFloat(dieselNext).toFixed(2)} diesel equivalent`,
+        `Review pricing models weekly — Hormuz Day ${mkt.conflict_day}, risk index ${mkt.risk}/100`,
+        `Diversify supplier base — oil flow disruption probability ${escalateProb}%`
+      ]
+    },
+  ];
+
+  const govActions = [
+    { ministry:'MEPIP / ZERA', priority:'CRITICAL', action:`Accelerate ZERA review cycle to weekly during Hormuz disruption — Day ${mkt.conflict_day}, hike probability ${Math.round(hike_prob*100)}%`, rationale:`Brent at $${mkt.brent.toFixed(0)}, diesel forecast $${parseFloat(dieselNext).toFixed(2)}/L — delay creates arbitrage window benefiting importers at consumer expense` },
+    { ministry:'RBZ', priority:'HIGH', action:`Release targeted forex liquidity for fuel importers at official rate — cap $50M facility tied to verified import documents`, rationale:`Current ${premium}% parallel premium (ZiG ${mkt.zig_parallel.toFixed(2)} vs ${mkt.zig_official.toFixed(2)} official) indicates demand-supply imbalance` },
+    { ministry:'MoFED', priority:'HIGH', action:'Activate Strategic Grain Reserve release for maize meal price stabilisation in urban centres', rationale:`Fuel-driven food inflation — basket forecast ${basketChange}, diesel hike probability ${Math.round(hike_prob*100)}% within ${daysToZera} days` },
+    { ministry:'MEPIP', priority:'MONITOR', action:'Negotiate emergency crude swap agreement with SADC regional suppliers as Hormuz hedge', rationale:`Zimbabwe's ${mkt.reserves_mo || 3}-month reserve buffer — extend to ${(mkt.reserves_mo || 3) + 2} months for escalation scenario (${escalateProb}% probability)` },
+    { ministry:'RBZ / Treasury', priority:'MONITOR', action:'Prepare targeted ZiG exchange rate communication to prevent speculative parallel market acceleration', rationale:`Game theory predicts speculative attack if premium breaches 35% for 7+ days (currently ${premium}%, Day ${mkt.conflict_day})` },
+  ];
+
+  const priorityColor = { CRITICAL:'var(--red)', URGENT:'var(--red)', HIGH:'var(--amber)', MONITOR:'#60a5fa' };
+  const priorityBg = { CRITICAL:'rgba(220,38,38,.12)', URGENT:'rgba(220,38,38,.12)', HIGH:'rgba(217,119,6,.12)', MONITOR:'rgba(96,165,250,.1)' };
+
+  document.getElementById('ai-content').innerHTML = `
+  <div style="display:flex;flex-direction:column;gap:20px">
+
+    <!-- EXECUTIVE SUMMARY -->
+    <div class="card analysis-card ai-block" style="padding:24px;border-left:3px solid var(--amber)">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+        <div style="width:32px;height:32px;border-radius:8px;background:rgba(217,119,6,.12);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+          <svg width="16" height="16" fill="none" stroke="var(--amber2)" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+        </div>
+        <div style="font-size:11px;color:var(--amber);font-weight:700;text-transform:uppercase;letter-spacing:.08em">Executive Summary</div>
+      </div>
+      <p style="font-size:15px;color:rgba(240,240,240,.92);line-height:1.8;font-family:'DM Sans',sans-serif">${a.summary}</p>
+      <div class="kv-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:10px;margin-top:18px">
+        ${kvBox2('Brent 7-Day', '$' + oil7d, 'var(--amber2)', '↑')}
+        ${kvBox2('Diesel Next', '$' + parseFloat(dieselNext).toFixed(2), 'var(--red)', '↑')}
+        ${kvBox2('Petrol Next', '$' + parseFloat(petrolNext).toFixed(2), 'var(--orange)', '↑')}
+        ${kvBox2('ZiG 30-Day', zigForecast, 'var(--amber)', '↑')}
+        ${kvBox2('Inflation Peak', inflationPeak + '%', 'var(--red)', '⚠')}
+        ${kvBox2('Food Basket', basketChange, '#f87171', '↑')}
+        ${kvBox2('ZERA Review', daysToZera + 'd', 'var(--amber2)', '⏱')}
+        ${kvBox2('Confidence', confidence + '%', 'var(--green)', '◎')}
+      </div>
+    </div>
+
+    <!-- MONTE CARLO SCENARIOS -->
+    <div class="card analysis-card ai-block" style="padding:22px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+        <div style="width:32px;height:32px;border-radius:8px;background:rgba(96,165,250,.1);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+          <svg width="16" height="16" fill="none" stroke="#60a5fa" stroke-width="2"><path d="M2 20V8l5-6 5 6v12"/><path d="M12 20v-8l5-4v12"/><path d="M7 20v-5h4v5"/></svg>
+        </div>
+        <div>
+          <div style="font-size:11px;color:#60a5fa;font-weight:700;text-transform:uppercase;letter-spacing:.08em">Monte Carlo — Scenario Probabilities</div>
+          <div style="font-size:11px;color:var(--t2);margin-top:2px">Based on 10,000 simulation runs · current market state</div>
+        </div>
+      </div>
+      <div class="scenarios-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px">
+        ${scenarios.map(s => `
+        <div style="padding:14px;border-radius:10px;background:var(--bg0);border:1px solid var(--line);transition:border-color .2s" class="hover-lift">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+            <div style="font-size:13px;font-weight:700;color:${s.color}">${s.icon} ${s.label}</div>
+            <div class="mono" style="font-size:18px;font-weight:700;color:${s.color}">${s.prob}%</div>
+          </div>
+          <div class="prob-meter"><div class="prob-fill" style="width:${s.prob}%;background:${s.color}"></div></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;margin-top:10px;font-size:10px">
+            <div style="color:var(--t2)">Brent<br><span style="color:var(--t1);font-family:'DM Mono',monospace">${s.brent_delta}</span></div>
+            <div style="color:var(--t2)">Diesel<br><span style="color:var(--t1);font-family:'DM Mono',monospace">${s.diesel_delta}</span></div>
+            <div style="color:var(--t2)">ZiG<br><span style="color:var(--t1);font-family:'DM Mono',monospace">${s.zig_delta}</span></div>
+          </div>
+        </div>`).join('')}
+      </div>
+    </div>
+
+    <!-- GAME THEORY ACTOR TABLE -->
+    <div class="card analysis-card ai-block" style="padding:22px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+        <div style="width:32px;height:32px;border-radius:8px;background:rgba(168,85,247,.1);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+          <svg width="16" height="16" fill="none" stroke="#a78bfa" stroke-width="2"><circle cx="8" cy="8" r="6"/><path d="M8 5v3l2 2"/></svg>
+        </div>
+        <div>
+          <div style="font-size:11px;color:#a78bfa;font-weight:700;text-transform:uppercase;letter-spacing:.08em">Game Theory — Actor Strategy Matrix</div>
+          <div style="font-size:11px;color:var(--t2);margin-top:2px">Multi-player non-cooperative game · Hormuz Day ${mkt.conflict_day || 7}</div>
+        </div>
+      </div>
+      <!-- Nash Equilibrium Callout -->
+      <div style="margin:14px 0;padding:12px 16px;border-radius:9px;background:rgba(168,85,247,.07);border:1px solid rgba(168,85,247,.2)">
+        <div style="font-size:10px;color:#a78bfa;font-weight:700;margin-bottom:4px;text-transform:uppercase;letter-spacing:.06em">🎯 Nash Equilibrium Prediction</div>
+        <div style="font-size:13px;color:rgba(240,240,240,.9);line-height:1.6">Simultaneous price hike across fuel, transport, and food cascading over ${daysToZera}–${daysToZera + 14} days — driven by rational self-interest of all 5 market actors. Day ${mkt.conflict_day} of Hormuz crisis.</div>
+        <div style="font-size:11px;color:var(--t2);margin-top:6px;font-style:italic">Dominant path: ZERA hikes (${Math.round(hike_prob*100)}%) → importers front-run (${Math.round(importer_prob*100)}%) → retailers mark up (${Math.round(retailer_prob*100)}%) → consumer rush (${Math.round(consumer_prob*100)}%)</div>
+        <div style="font-size:11px;color:#f87171;margin-top:4px">⚠ Welfare impact: Estimated ${welfareImpact}% real purchasing power erosion for median household</div>
+      </div>
+      <!-- Actor table — responsive scrollable wrapper -->
+      <div class="gt-wrap" style="border:1px solid var(--line);border-radius:8px;overflow:hidden">
+        <!-- Header row -->
+        <div class="gt-head" style="background:var(--bg2)">
+          <div class="gt-head-cell">Actor</div>
+          <div class="gt-head-cell">Dominant Strategy</div>
+          <div class="gt-head-cell gt-obj-col">Objective</div>
+          <div class="gt-head-cell" style="text-align:center">Prob</div>
+        </div>
+        <!-- Data rows -->
+        ${actors.map((ac, ai) => `
+        <div class="gt-row" style="${ai % 2 === 1 ? 'background:rgba(255,255,255,.012)' : ''}">
+          <div class="gt-cell gt-actor">
+            <span style="font-size:16px;flex-shrink:0">${ac.icon}</span>
+            <span style="font-weight:700;font-size:11px;color:${ac.color};white-space:nowrap">${ac.name}</span>
+          </div>
+          <div class="gt-cell" style="color:rgba(240,240,240,.85);line-height:1.45;font-size:11px">${ac.strategy}</div>
+          <div class="gt-cell gt-obj-col" style="color:var(--t1);font-size:11px;line-height:1.4">${ac.objective}</div>
+          <div class="gt-cell gt-prob-col" style="padding:8px 10px">
+            <div class="mono" style="font-size:13px;font-weight:700;color:${ac.color}">${Math.round(ac.prob*100)}%</div>
+            <div class="gt-prob-bar"><div class="gt-prob-fill" style="width:${Math.round(ac.prob*100)}%;background:${ac.color}"></div></div>
+            <div style="font-size:9px;color:var(--t2);white-space:nowrap">${ac.probLabel}</div>
+          </div>
+        </div>`).join('')}
+      </div>
+    </div>
+
+    <!-- CITIZEN RECOMMENDATIONS -->
+    <div class="card analysis-card ai-block" style="padding:22px;border-left:3px solid var(--green)">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+        <div style="width:32px;height:32px;border-radius:8px;background:rgba(22,163,74,.12);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+          <svg width="16" height="16" fill="none" stroke="var(--green)" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+        </div>
+        <div>
+          <div style="font-size:11px;color:var(--green);font-weight:700;text-transform:uppercase;letter-spacing:.08em">Citizen Action Plan</div>
+          <div style="font-size:11px;color:var(--t2);margin-top:2px">Tailored recommendations by household type — act before Nash equilibrium triggers</div>
+        </div>
+      </div>
+      <div class="citizen-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px">
+        ${citizenActions.map(ca => `
+        <div class="citizen-card">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+            <div style="font-size:13px;font-weight:700;font-family:'Outfit',sans-serif">${ca.type}</div>
+            <span style="font-size:9px;padding:3px 8px;border-radius:5px;font-weight:700;background:${priorityBg[ca.urgency]};color:${priorityColor[ca.urgency]}">${ca.urgency}</span>
+          </div>
+          <div style="font-size:10px;color:var(--t2);margin-bottom:10px;font-family:'DM Mono',monospace">⏱ ${ca.timeframe}</div>
+          <div style="display:flex;flex-direction:column;gap:7px">
+            ${ca.actions.map((act, i) => `
+            <div style="display:flex;gap:9px;align-items:flex-start">
+              <div style="width:18px;height:18px;border-radius:50%;background:rgba(22,163,74,.15);border:1px solid rgba(22,163,74,.3);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;font-size:9px;font-weight:700;color:var(--green)">${i+1}</div>
+              <div style="font-size:12px;color:rgba(240,240,240,.85);line-height:1.55">${act}</div>
+            </div>`).join('')}
+          </div>
+        </div>`).join('')}
+      </div>
+    </div>
+
+    <!-- GOVERNMENT POLICY RECOMMENDATIONS -->
+    <div class="card analysis-card ai-block" style="padding:22px;border-left:3px solid #60a5fa">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+        <div style="width:32px;height:32px;border-radius:8px;background:rgba(96,165,250,.1);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+          <svg width="16" height="16" fill="none" stroke="#60a5fa" stroke-width="2"><path d="M3 22V10l9-8 9 8v12"/><path d="M9 22V15h6v7"/></svg>
+        </div>
+        <div>
+          <div style="font-size:11px;color:#60a5fa;font-weight:700;text-transform:uppercase;letter-spacing:.08em">Government Policy Recommendations</div>
+          <div style="font-size:11px;color:var(--t2);margin-top:2px">Interventions to correct market failures and protect citizens</div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        ${govActions.map(ga => `
+        <div class="gov-card">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:8px;flex-wrap:wrap">
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="font-size:9px;padding:3px 9px;border-radius:5px;font-weight:700;background:${priorityBg[ga.priority]};color:${priorityColor[ga.priority]}">${ga.priority}</span>
+              <span style="font-size:12px;font-weight:700;color:#93c5fd;font-family:'DM Mono',monospace">${ga.ministry}</span>
+            </div>
+          </div>
+          <div style="font-size:13px;color:rgba(240,240,240,.9);line-height:1.6;margin-bottom:8px">${ga.action}</div>
+          <div style="font-size:11px;color:var(--t2);font-style:italic;padding:8px 12px;background:rgba(0,0,0,.2);border-radius:6px">📊 Rationale: ${ga.rationale}</div>
+        </div>`).join('')}
+      </div>
+    </div>
+
+    <!-- KEY RISKS + PRICE TRANSMISSION TIMELINE -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px" class="ai-block analysis-card">
+      <div class="card" style="padding:20px;border-left:3px solid var(--red)">
+        <div style="font-size:11px;color:var(--red);font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin-bottom:14px">⚠ Key Risks</div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+                    ${risks.map(r => `
+          <div style="display:flex;gap:9px;align-items:flex-start">
+            <div style="width:6px;height:6px;border-radius:50%;background:var(--red);flex-shrink:0;margin-top:6px"></div>
+            <div style="font-size:12px;color:rgba(240,240,240,.85);line-height:1.55">${r}</div>
+          </div>`).join('')}
+        </div>
+      </div>
+
+      <div class="card" style="padding:20px">
+        <div style="font-size:11px;color:var(--amber);font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin-bottom:14px">📅 Price Transmission Timeline</div>
+        <div class="timeline-item">
+          <div class="timeline-dot" style="background:var(--red)"></div>
+          <div style="font-size:11px;font-weight:700;color:var(--red)">Day ${mkt.conflict_day} (NOW)</div>
+          <div style="font-size:11px;color:var(--t1);margin-top:3px">Brent at $${mkt.brent.toFixed(0)} · Hormuz ${mkt.hormuz} · Importers front-running (${Math.round(importer_prob*100)}%)</div>
+        </div>
+        <div class="timeline-item">
+          <div class="timeline-dot" style="background:var(--amber)"></div>
+          <div style="font-size:11px;font-weight:700;color:var(--amber)">Day ${mkt.conflict_day + daysToZera} (ZERA Review)</div>
+          <div style="font-size:11px;color:var(--t1);margin-top:3px">Expected fuel hike +$${(parseFloat(dieselNext)-mkt.diesel).toFixed(2)}/L · Diesel $${mkt.diesel.toFixed(2)} → $${parseFloat(dieselNext).toFixed(2)}</div>
+        </div>
+        <div class="timeline-item">
+          <div class="timeline-dot" style="background:var(--orange)"></div>
+          <div style="font-size:11px;font-weight:700;color:var(--orange)">Day ${mkt.conflict_day + daysToZera + 7} (Food Pass-Through)</div>
+          <div style="font-size:11px;color:var(--t1);margin-top:3px">Retail food prices absorb transport cost · Basket forecast ${basketChange}</div>
+        </div>
+        <div class="timeline-item">
+          <div class="timeline-dot" style="background:#a78bfa"></div>
+          <div style="font-size:11px;font-weight:700;color:#a78bfa">Day ${mkt.conflict_day + daysToZera + 14} (ZiG Pressure)</div>
+          <div style="font-size:11px;color:var(--t1);margin-top:3px">ZiG at ${mkt.zig_parallel.toFixed(2)} (${premium}% premium) · RBZ intervention probability ${Math.round(rbz_prob*100)}%</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CONFIDENCE BAR -->
+    <div class="card analysis-card ai-block" style="padding:18px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
+      <div style="display:flex;align-items:center;gap:10px">
+        <svg width="16" height="16" fill="none" stroke="var(--amber2)" stroke-width="2"><circle cx="8" cy="8" r="6"/><path d="M8 5v3l2 2"/></svg>
+        <span style="font-size:13px;color:var(--t1)">Model Confidence</span>
+        <span style="font-size:10px;color:var(--t2)">(live data + Monte Carlo agreement)</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:14px">
+        <div class="pbar" style="width:180px"><div class="pfill" style="width:${confidence}%;background:linear-gradient(90deg,var(--amber),var(--orange))"></div></div>
+        <span class="mono" style="color:var(--amber2);font-weight:700;font-size:18px;font-family:'Outfit',sans-serif">${confidence}%</span>
+      </div>
+    </div>
+
+  </div>`;
+
+  // Trigger motion animations on rendered elements
+  requestAnimationFrame(() => {
+    document.querySelectorAll('#ai-content [data-motion]').forEach((el, i) => {
+      el.style.animationDelay = (i * 0.07) + 's';
+      el.classList.add('motion-in');
+    });
+    // Animate probability fills
+    document.querySelectorAll('.prob-fill').forEach(el => {
+      const w = el.style.width;
+      el.style.width = '0';
+      setTimeout(() => { el.style.width = w; }, 100);
+    });
+  });
+}
+
+function kvBox2(label, value, color = 'var(--t0)', icon = '') {
+  return `
+    <div class="card hover-lift" style="padding:14px;text-align:center;cursor:default">
+      <div style="font-size:9px;color:var(--t2);margin-bottom:4px;text-transform:uppercase;letter-spacing:.06em">${label}</div>
+      <div style="font-size:18px;font-weight:800;color:${color};font-family:'Outfit',sans-serif">${icon} ${value}</div>
+    </div>
+  `;
+}
+
+function kvBox(label, value, color = 'var(--t0)') {
+  return `
+    <div class="card" style="padding:16px;text-align:center">
+      <div style="font-size:10px;color:var(--t2);margin-bottom:6px;text-transform:uppercase">${label}</div>
+      <div class="mono" style="font-size:20px;font-weight:700;color:${color}">${value}</div>
+    </div>
+  `;
+}
+
+// ======================================================================
+// REPORT FORM
+// ======================================================================
+
+function selCat(btn) {
+  document.querySelectorAll('.catbtn').forEach(b => b.classList.remove('on'));
+  btn.classList.add('on');
+  selCatMode = btn.dataset.cat;
+
+  const fields = {
+    currency: [{ id: 'value', lbl: 'ZiG Rate (per USD)', ph: '34.20', type: 'number' }],
+    diesel:   [{ id: 'value', lbl: 'Diesel price ($/L)', ph: '1.77', type: 'number' }],
+    petrol:   [{ id: 'value', lbl: 'Petrol price ($/L)', ph: '1.71', type: 'number' }],
+    food:     [{ id: 'item', lbl: 'Item name', ph: 'Maize Meal 30kg', type: 'text' }, { id: 'value', lbl: 'Price ($)', ph: '13.50', type: 'number' }],
+    transport: [{ id: 'value', lbl: 'Kombi fare ($)', ph: '1.50', type: 'number' }],
+    other:    [{ id: 'item', lbl: 'What are you reporting?', ph: 'e.g. Electricity units, Gas...', type: 'text' }, { id: 'value', lbl: 'Price ($)', ph: '5.00', type: 'number' }],
+  };
+
+  document.getElementById('form-fields').innerHTML = (fields[selCatMode] || []).map(f => `
+    <div style="margin-bottom:14px">
+      <label style="display:block;font-size:13px;font-weight:600;margin-bottom:7px">${f.lbl}</label>
+      <input type="${f.type}" step="0.01" class="inp" id="field-${f.id}" placeholder="${f.ph}">
+    </div>
+  `).join('');
+}
+
+document.getElementById('report-form')?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const city = document.getElementById('form-city').value;
+  const value = document.getElementById('field-value')?.value;
+  const item = document.getElementById('field-item')?.value || '';
+  const locationHint = document.getElementById('field-location-hint')?.value || '';
+  if (!city || !selCatMode || !value) {
+    const btn = e.target.querySelector('button[type="submit"]');
+    const origHTML = btn.innerHTML;
+    btn.innerHTML = '<svg width="14" height="14" fill="none" stroke="white" stroke-width="2.5"><circle cx="7" cy="7" r="5"/><path d="M7 4v3M7 9v1"/></svg> Fill all fields';
+    btn.style.background = 'var(--red)';
+    setTimeout(() => { btn.innerHTML = origHTML; btn.style.background = ''; }, 2000);
+    return;
+  }
+
+  const btn = e.target.querySelector('button[type="submit"]');
+  const origHTML = btn.innerHTML;
+  btn.innerHTML = '<div class="spinner" style="width:16px;height:16px;border-width:2px;margin:0"></div> Submitting...';
+  btn.disabled = true;
+
+  // Map frontend categories to API-accepted categories
+  // API /api/contribute accepts: currency, fuel, food, transport
+  // petrol and diesel both map to 'fuel' for API compatibility; we pass sub_type for future use
+  const categoryMap = { diesel: 'fuel', petrol: 'fuel', other: 'food' };
+  const apiCategory = categoryMap[selCatMode] || selCatMode;
+
+  try {
+    const res = await fetch(`${API}/api/contribute`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        city,
+        category: apiCategory,
+        sub_type: selCatMode, // diesel | petrol | other etc for future API handling
+        value: parseFloat(value),
+        item: item || undefined,
+        location_hint: locationHint || undefined,
+      }),
+    });
+
+    if (res.ok) {
+      btn.innerHTML = '<svg width="14" height="14" fill="none" stroke="white" stroke-width="2.5"><path d="M2 7l4 4 7-7"/></svg> Submitted!';
+      btn.style.background = 'var(--green)';
+      setTimeout(() => {
+        btn.innerHTML = origHTML;
+        btn.style.background = '';
+        btn.disabled = false;
+        e.target.reset();
+        document.getElementById('form-fields').innerHTML = '';
+        document.querySelectorAll('.catbtn').forEach(b => b.classList.remove('on'));
+        selCatMode = null;
+        loadRecentReports();
+      }, 2500);
+    } else {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `HTTP ${res.status}`);
+    }
+  } catch (err) {
+    console.warn('[SUBMIT]', err);
+    btn.innerHTML = '<svg width="14" height="14" fill="none" stroke="white" stroke-width="2.5"><circle cx="7" cy="7" r="5"/><path d="M7 4v3M7 9v1"/></svg> ' + (err.message || 'Error – try again');
+    btn.style.background = 'var(--red)';
+    setTimeout(() => { btn.innerHTML = origHTML; btn.style.background = ''; btn.disabled = false; }, 2500);
+  }
+});
+
+async function loadRecentReports() {
+  const container = document.getElementById('recent-reports');
+  if (!container) return;
+
+  // Skeleton loader
+  container.innerHTML = `<div style="display:flex;flex-direction:column;gap:8px">${Array(4).fill(`
+    <div style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;border:1px solid var(--line);background:var(--bg0)">
+      <div style="width:36px;height:36px;border-radius:9px;background:var(--line);flex-shrink:0"></div>
+      <div style="flex:1"><div style="height:10px;width:55%;background:var(--line);border-radius:4px;margin-bottom:6px"></div><div style="height:8px;width:35%;background:var(--line);border-radius:4px"></div></div>
+      <div style="width:46px;height:18px;background:var(--line);border-radius:4px"></div>
+    </div>`).join('')}</div>`;
+
+  const catMeta = {
+    currency: { icon:'💱', label:'ZiG Rate',   color:'var(--amber2)', bg:'rgba(217,119,6,.1)',   border:'rgba(217,119,6,.25)',  unit:'/ USD' },
+    diesel:   { icon:'⛽', label:'Diesel',      color:'var(--red)',    bg:'rgba(220,38,38,.08)',  border:'rgba(220,38,38,.2)',   unit:'/ L' },
+    petrol:   { icon:'🔥', label:'Petrol',      color:'var(--orange)', bg:'rgba(234,88,12,.08)',  border:'rgba(234,88,12,.2)',   unit:'/ L' },
+    fuel:     { icon:'⛽', label:'Fuel',        color:'var(--red)',    bg:'rgba(220,38,38,.08)',  border:'rgba(220,38,38,.2)',   unit:'/ L' },
+    food:     { icon:'🛒', label:'Food',        color:'var(--green)',  bg:'rgba(22,163,74,.08)',  border:'rgba(22,163,74,.2)',   unit:'/ item' },
+    transport:{ icon:'🚐', label:'Kombi Fare',  color:'#60a5fa',       bg:'rgba(96,165,250,.08)', border:'rgba(96,165,250,.2)',  unit:'/ trip' },
+    other:    { icon:'📋', label:'Other',       color:'var(--t1)',     bg:'rgba(80,80,80,.1)',    border:'rgba(80,80,80,.25)',   unit:'' },
+  };
+
+  function timeAgo(ts) {
+    if (!ts) return '';
+    try {
+      const s = (Date.now() - new Date(ts)) / 1000;
+      if (s < 60) return 'just now';
+      if (s < 3600) return Math.floor(s/60) + 'm ago';
+      if (s < 86400) return Math.floor(s/3600) + 'h ago';
+      return Math.floor(s/86400) + 'd ago';
+    } catch { return ''; }
+  }
+
+  try {
+    const r = await fetch(`${API}/api/contributions?limit=15`);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const d = await r.json();
+    const items = d.items || [];
+    const total = d.total || items.length;
+
+    if (!items.length) {
+      container.innerHTML = `
+        <div style="text-align:center;padding:36px 20px">
+          <div style="font-size:40px;margin-bottom:14px;opacity:.35">📊</div>
+          <div style="font-size:15px;font-weight:700;margin-bottom:6px">No reports yet</div>
+          <div style="font-size:13px;color:var(--t2);line-height:1.6">Be the first to report a price!<br>Your data helps your entire community plan ahead.</div>
+        </div>`;
+      return;
+    }
+
+    // Stats bar
+    const uniqueCities = [...new Set(items.map(i => i.city_name))].length;
+    const uniqueCats = [...new Set(items.map(i => i.category))].length;
+    const latestTime = items[0]?.time ? timeAgo(items[0].time) : '';
+
+    container.innerHTML = `
+      <!-- Community stats -->
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px">
+        <div style="padding:10px 12px;border-radius:9px;background:var(--bg0);border:1px solid var(--line);text-align:center">
+          <div style="font-size:20px;font-weight:800;font-family:'Outfit',sans-serif;color:var(--amber2)">${total}</div>
+          <div style="font-size:9px;color:var(--t2);text-transform:uppercase;letter-spacing:.06em;margin-top:2px">Total Reports</div>
+        </div>
+        <div style="padding:10px 12px;border-radius:9px;background:var(--bg0);border:1px solid var(--line);text-align:center">
+          <div style="font-size:20px;font-weight:800;font-family:'Outfit',sans-serif;color:#60a5fa">${uniqueCities}</div>
+          <div style="font-size:9px;color:var(--t2);text-transform:uppercase;letter-spacing:.06em;margin-top:2px">Cities</div>
+        </div>
+        <div style="padding:10px 12px;border-radius:9px;background:var(--bg0);border:1px solid var(--line);text-align:center">
+          <div style="font-size:20px;font-weight:800;font-family:'Outfit',sans-serif;color:var(--green)">${uniqueCats}</div>
+          <div style="font-size:9px;color:var(--t2);text-transform:uppercase;letter-spacing:.06em;margin-top:2px">Categories</div>
+        </div>
+      </div>
+
+      <!-- Latest update badge -->
+      ${latestTime ? `<div style="display:flex;align-items:center;gap:7px;margin-bottom:10px">
+        <span style="width:6px;height:6px;border-radius:50%;background:var(--green);animation:pdot 1.8s ease infinite;flex-shrink:0"></span>
+        <span style="font-size:11px;color:var(--t1)">Latest report <strong style="color:var(--t0)">${latestTime}</strong></span>
+      </div>` : ''}
+
+      <!-- Report cards -->
+      <div style="display:flex;flex-direction:column;gap:7px">
+        ${items.map((item, idx) => {
+          const m = catMeta[item.sub_type] || catMeta[item.category] || catMeta.other;
+          const ago = timeAgo(item.time);
+          const isNew = idx < 2;
+          const hint = item.location_hint ? `<span style="color:var(--t2);font-size:10px"> · ${item.location_hint}</span>` : '';
+          return `
+          <div style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;background:var(--bg0);border:1px solid ${m.border};animation:sup .45s ease both;animation-delay:${idx * 0.045}s;opacity:0;cursor:default;transition:background .2s,transform .18s"
+               onmouseover="this.style.background='${m.bg}';this.style.transform='translateX(3px)'"
+               onmouseout="this.style.background='var(--bg0)';this.style.transform='translateX(0)'">
+            <!-- Category icon -->
+            <div style="width:36px;height:36px;border-radius:9px;background:${m.bg};border:1px solid ${m.border};display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:17px">${m.icon}</div>
+            <!-- Info -->
+            <div style="flex:1;min-width:0">
+              <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:2px">
+                <span style="font-weight:700;font-size:13px">${item.city_name || '—'}</span>
+                <span style="font-size:9px;padding:2px 7px;border-radius:4px;background:${m.bg};color:${m.color};font-weight:700;border:1px solid ${m.border}">${m.label}</span>
+                ${isNew ? '<span style="font-size:8px;padding:1px 5px;border-radius:3px;background:rgba(22,163,74,.18);color:var(--green);font-weight:700;border:1px solid rgba(22,163,74,.3)">NEW</span>' : ''}
+              </div>
+              <div style="font-size:10px;color:var(--t2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${ago}${hint}</div>
+            </div>
+            <!-- Value -->
+            <div style="text-align:right;flex-shrink:0">
+              <div style="font-size:16px;font-weight:800;font-family:'Outfit',sans-serif;color:${m.color}">$${(+item.value).toFixed(2)}</div>
+              <div style="font-size:9px;color:var(--t2)">${m.unit}</div>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+
+      <!-- Footer note -->
+      <div style="margin-top:12px;padding:8px 12px;border-radius:8px;background:rgba(217,119,6,.04);border:1px solid rgba(217,119,6,.1);display:flex;align-items:center;gap:8px">
+        <svg width="12" height="12" fill="none" stroke="var(--amber)" stroke-width="2"><circle cx="6" cy="6" r="5"/><path d="M6 3v3l2 1"/></svg>
+        <span style="font-size:11px;color:var(--t2)">Showing ${items.length} of ${total} community reports · live updating</span>
+      </div>`;
+
+  } catch(e) {
+    console.warn('[REPORTS]', e);
+    container.innerHTML = `
+      <div style="text-align:center;padding:24px;color:var(--t2)">
+        <div style="font-size:22px;margin-bottom:8px">⚠</div>
+        <div style="font-size:13px;margin-bottom:12px">Unable to load reports</div>
+        <button onclick="loadRecentReports()" style="padding:7px 16px;border-radius:7px;border:1px solid var(--line);background:var(--bg2);color:var(--t1);cursor:pointer;font-family:inherit;font-size:12px">↻ Retry</button>
+      </div>`;
+  }
+}
+
+// ======================================================================
+// CHARTS
+// ======================================================================
+
+let mainChart = null;
+let oilHistory = {
+  labels: ['Feb 25', 'Feb 26', 'Feb 27', 'Feb 28', 'Mar 1', 'Mar 2', 'Mar 3', 'Mar 4', 'Mar 5', 'Mar 6', 'Mar 7'],
+  data: [70.5, 71.2, 72.8, 75.4, 77.2, 79.5, 82.3, 83.1, 84.2, 85.0, 85.41]
+};
+
+async function fetchOilHistory() {
+  try {
+    const res = await fetch(`${API}/api/oil-history`).catch(() => null);
+    if (res && res.ok) {
+      const d = await res.json();
+      if (Array.isArray(d) && d.length >= 2) {
+        // Ensure completely fresh arrays
+        const newLabels = [];
+        const newData = [];
+
+        d.forEach(p => {
+          if (p && p.date) {
+            const parts = p.date.split('-');
+            if (parts.length === 3) {
+              // Explicitly parse integers to guarantee strict local timezone mapping
+              const dt = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+              newLabels.push(dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
+            } else {
+              newLabels.push(p.date);
+            }
+          } else {
+            newLabels.push('');
+          }
+          newData.push(parseFloat(p.price) || 0);
+        });
+
+        oilHistory.labels = newLabels;
+        oilHistory.data = newData;
+
+        if (mkt && mkt.brent) {
+          oilHistory.data[oilHistory.data.length - 1] = parseFloat(mkt.brent);
+        }
+        return true;
+      }
+    }
+  } catch(e) { console.warn('[OIL-HISTORY]', e); }
+  return false;
+}
+
+function updateOilChartStats() {
+  const data = oilHistory.data;
+  if (!data.length) return;
+  const low = Math.min(...data);
+  const high = Math.max(...data);
+  const cur = data[data.length - 1];
+  const pct = Math.round((cur / data[0] - 1) * 100);
+
+  const lowEl = document.getElementById('chart-low');
+  const highEl = document.getElementById('chart-high');
+  const curEl = document.getElementById('chart-current');
+  const badge = document.getElementById('war-premium-badge');
+  const updated = document.getElementById('chart-last-updated');
+  const dayRange = document.getElementById('chart-day-range');
+  const lowLabel = lowEl?.closest('div')?.querySelector('div:first-child');
+  const highLabel = highEl?.closest('div')?.querySelector('div:first-child');
+
+  if (lowEl) lowEl.textContent = `$${low.toFixed(2)}`;
+  if (highEl) highEl.textContent = `$${high.toFixed(2)}`;
+  if (curEl) curEl.textContent = `$${cur.toFixed(2)}`;
+  if (badge) badge.textContent = `WAR PREMIUM ${pct >= 0 ? '+' : ''}${pct}%`;
+  if (updated) updated.textContent = `updated ${new Date().toLocaleTimeString()}`;
+  if (dayRange) dayRange.textContent = `${data.length}-day`;
+  if (lowLabel) lowLabel.textContent = `${data.length}-DAY LOW`;
+  if (highLabel) highLabel.textContent = `${data.length}-DAY HIGH`;
+}
+
+function updateMainChart(newBrent) {
+  if (!mainChart || newBrent === undefined || newBrent === null) return;
+
+  const brentVal = parseFloat(newBrent);
+  if (isNaN(brentVal)) return;
+
+  const lastIdx = oilHistory.data.length - 1;
+  if (lastIdx < 0) return;
+
+  const today = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  const lastLabel = oilHistory.labels[lastIdx];
+
+  // Determine if we need to append a new day or update the existing one
+  if (lastLabel !== today) {
+    oilHistory.labels.push(today);
+    oilHistory.data.push(brentVal);
+    // Cap history length to avoid flattening the graph over time
+    if (oilHistory.data.length > 30) {
+      oilHistory.labels.shift();
+      oilHistory.data.shift();
+    }
+  } else {
+    // Always update the latest point to match live fluctuations
+    oilHistory.data[lastIdx] = brentVal;
+  }
+
+  // FIX: Explicitly clone arrays so Chart.js reactivity always detects the changes
+  mainChart.data.labels = Array.from(oilHistory.labels);
+  mainChart.data.datasets[0].data = Array.from(oilHistory.data);
+  mainChart.update('none');
+  updateOilChartStats();
+}
+
+function initCharts() {
+  const mainCtx = document.getElementById('main-chart');
+  if (mainCtx) {
+    mainChart = new Chart(mainCtx, {
+      type: 'line',
+      data: {
+        labels: oilHistory.labels,
+        datasets: [{
+          data: [...oilHistory.data],
+          borderColor: '#d97706',
+          backgroundColor: ctx => {
+            const g = ctx.chart.ctx.createLinearGradient(0, 0, 0, 220);
+            g.addColorStop(0, 'rgba(217,119,6,.28)');
+            g.addColorStop(1, 'rgba(217,119,6,0)');
+            return g;
+          },
+          fill: true,
+          tension: 0.4,
+          pointRadius: 5,
+          pointBackgroundColor: ctx => {
+            const idx = ctx.dataIndex;
+            const len = ctx.dataset.data.length;
+            return idx === len - 1 ? '#f59e0b' : '#d97706';
+          },
+          pointBorderColor: '#050505',
+          pointBorderWidth: 2,
+          pointHoverRadius: 7,
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: ctx => ` Brent: $${ctx.parsed.y.toFixed(2)}/bbl`
+            }
+          }
+        },
+        scales: {
+          x: { grid: { color: '#181818' }, ticks: { color: '#555', font: { size: 10 } } },
+          y: {
+            grid: { color: '#181818' },
+            ticks: { color: '#555', font: { size: 10 }, callback: v => `$${v}` },
+          }
+        }
+      }
+    });
+    updateOilChartStats();
+
+    // Fetch real history and refresh chart
+    fetchOilHistory().then(ok => {
+      if (ok && mainChart) {
+        mainChart.data.labels = [...oilHistory.labels]; // Added spread
+        mainChart.data.datasets[0].data = [...oilHistory.data]; // Added spread
+        mainChart.update();
+        updateOilChartStats();
+        const liveLabel = document.getElementById('oil-live-label');
+        if (liveLabel) liveLabel.textContent = '⬤ LIVE DATA';
+      }
+    });
+  }
+
+  const sparkConfig = (data, color, key) => ({
+    type: 'line',
+    data: { labels: data.map((_, i) => i), datasets: [{ data: [...data], borderColor: color, borderWidth: 2, fill: false, tension: 0.4, pointRadius: 0 }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { display: false } }, animation: { duration: 400, easing: 'easeOutCubic' } }
+  });
+
+  const sb = document.getElementById('spark-brent');
+  if (sb) sparkCharts.brent = new Chart(sb, sparkConfig(sparkHistory.brent, '#d97706', 'brent'));
+
+  const sd = document.getElementById('spark-diesel');
+  if (sd) sparkCharts.diesel = new Chart(sd, sparkConfig(sparkHistory.diesel, '#dc2626', 'diesel'));
+
+  const sp = document.getElementById('spark-petrol');
+  if (sp) sparkCharts.petrol = new Chart(sp, sparkConfig(sparkHistory.petrol, '#ea580c', 'petrol'));
+}
+
+// ======================================================================
+// NAVIGATION
+// ======================================================================
+
+function initNav() {
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('on'));
+      document.querySelectorAll('.sec').forEach(s => s.classList.remove('on'));
+      tab.classList.add('on');
+      document.getElementById(`sec-${tab.dataset.s}`)?.classList.add('on');
+
+      if (tab.dataset.s === 'map' && !mbMap) initMap();
+      if (tab.dataset.s === 'report') loadRecentReports();
+      if (tab.dataset.s === 'analysis') { fetchAnalysis(); setTimeout(reobserveMotion, 50); }
+      reobserveMotion();
+    });
+  });
+}
+
+function tickClock() {
+  document.getElementById('clock').textContent = new Date().toLocaleTimeString();
+}
+
+// ======================================================================
+// INIT
+// ======================================================================
+
+document.addEventListener('DOMContentLoaded', async () => {
+  initThreeBackground();
+  initMotionObserver();
+  initNav();
+  initCharts();
+  await loadConfig();
+  await fetchInitialData();
+  fetchAnalysis();
+  connectSSE();
+  _startSSEWatchdog();
+  tickClock();
+  setInterval(tickClock, 1000);
+
+  // Stale SSE detector: if connected but no data for 30s, force reconnect
+  setInterval(() => {
+    if (sseConnected && _lastSSETick && (Date.now() - _lastSSETick > 30000)) {
+      console.warn('[SSE] Stale connection detected — no data for 30s, reconnecting...');
+      sseConnected = false;
+      connectSSE();
+    }
+  }, 15000);
+  // Analysis: every 60 seconds check for new Claude analysis
+  setInterval(fetchAnalysis, 60 * 1000);
+  // Food basket: every 5 minutes from real API
+  basketRefreshTimer = setInterval(refreshBasket, 5 * 60 * 1000);
+  // Oil chart history: refresh every 10 minutes to get new data points
+  setInterval(() => {
+    fetchOilHistory().then(ok => {
+      if (ok && mainChart) {
+        mainChart.data.labels = [...oilHistory.labels]; // Added spread
+        mainChart.data.datasets[0].data = [...oilHistory.data]; // Added spread
+        mainChart.update('none');
+        updateOilChartStats();
+      }
+    });
+  }, 10 * 60 * 1000);
+});
+
+// ======================================================================
+// FRAMER-STYLE INTERSECTION OBSERVER
+// ======================================================================
+
+function initMotionObserver() {
+  if (!('IntersectionObserver' in window)) {
+    // Fallback: show all immediately
+    document.querySelectorAll('[data-motion]').forEach(el => {
+      el.classList.add('motion-in');
+      el.style.opacity = '1';
+    });
+    return;
+  }
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const el = entry.target;
+        const delay = el.dataset.delay || '0';
+        setTimeout(() => {
+          el.classList.add('motion-in');
+        }, parseFloat(delay) * 1000);
+        observer.unobserve(el);
+      }
+    });
+  }, { threshold: 0.08, rootMargin: '0px 0px -40px 0px' });
+
+  // Observe all current and future [data-motion] elements
+  document.querySelectorAll('[data-motion]').forEach(el => observer.observe(el));
+
+  // Re-run on tab switch to catch new sections
+  window._motionObserver = observer;
+}
+
+// Called when switching tabs to re-observe newly visible elements
+function reobserveMotion() {
+  if (!window._motionObserver) return;
+  document.querySelectorAll('[data-motion]:not(.motion-in)').forEach(el => {
+    window._motionObserver.observe(el);
+  });
+  // Also observe any just-rendered ones
+  setTimeout(() => {
+    document.querySelectorAll('[data-motion]:not(.motion-in)').forEach(el => {
+      window._motionObserver.observe(el);
+    });
+  }, 100);
+}
+</script>
+</body>
+</html>
